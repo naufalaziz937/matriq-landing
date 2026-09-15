@@ -37,7 +37,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
+      supportWhatsapp: process.env.NUXT_PUBLIC_SUPPORT_WHATSAPP || '',
+      supportInstagram: process.env.NUXT_PUBLIC_SUPPORT_INSTAGRAM || ''
     }
   }
 })

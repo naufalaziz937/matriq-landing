@@ -1,6 +1,7 @@
 <template>
   <div
     v-if="isOpen"
+    data-lenis-prevent
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in select-none"
     @click.self="$emit('close')"
   >

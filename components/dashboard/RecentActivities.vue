@@ -2,10 +2,11 @@
   <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-card card-hover-lift select-none" data-purpose="recent-learning-activity">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-base font-bold text-slate-900">Aktivitas Belajar Terbaru</h3>
-      <a class="text-xs font-semibold text-blue-600 hover:underline cursor-pointer" @click="$emit('view-all-activities')">
+      <a v-if="showViewAll" class="text-xs font-semibold text-blue-600 hover:underline cursor-pointer" @click="$emit('view-all-activities')">
         Lihat Semua
       </a>
     </div>
+    <p v-if="!activities.length" class="rounded-2xl bg-slate-50 p-4 text-center text-xs text-slate-500">Belum ada aktivitas belajar. Mulai latihan untuk melihat progresmu.</p>
 
     <div class="space-y-4">
       <div
@@ -59,9 +60,11 @@ interface Activity {
 withDefaults(
   defineProps<{
     activities?: Activity[];
+    showViewAll?: boolean;
   }>(),
   {
-    activities: () => []
+    activities: () => [],
+    showViewAll: true
   }
 );
 

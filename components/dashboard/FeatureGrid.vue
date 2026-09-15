@@ -42,9 +42,9 @@
         <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
           <BarChart3 class="w-5 h-5 stroke-current" />
         </div>
-        <h3 class="text-lg font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Tryout</h3>
+        <h3 class="text-lg font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Rekap Tryout</h3>
         <p class="text-xs text-slate-500 font-medium mt-1 leading-relaxed max-w-[190px]">
-          Rasakan simulasi UTBK sebenarnya.
+          Pantau hasil tryout dari platform lain.
         </p>
       </div>
 

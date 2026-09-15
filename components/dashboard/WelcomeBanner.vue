@@ -23,7 +23,7 @@
       <img
         src="/mascot/15.svg"
         alt="waving hand"
-        class="absolute -right-10 top-3 h-28 w-auto animate-wiggle origin-bottom-right"
+        class="absolute right-0 xl:-right-10 top-3 h-28 w-auto animate-wiggle origin-bottom-right"
       />
     </div>
   </div>

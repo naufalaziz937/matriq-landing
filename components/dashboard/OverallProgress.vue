@@ -2,7 +2,7 @@
   <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-card card-hover-lift select-none" data-purpose="overall-progress">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-base font-bold text-slate-900">Progres Keseluruhan</h3>
-      <a class="text-xs font-semibold text-blue-600 hover:underline cursor-pointer" @click="$emit('view-all-progress')">
+      <a v-if="showViewAll" class="text-xs font-semibold text-blue-600 hover:underline cursor-pointer" @click="$emit('view-all-progress')">
         Lihat Semua
       </a>
     </div>
@@ -54,11 +54,12 @@
             <span class="text-slate-600 font-semibold">{{ cat.name }}</span>
           </div>
           <span class="font-bold text-slate-900">
-            {{ cat.completed }}<span class="text-slate-400 font-normal">/{{ cat.total }}</span>
+            {{ cat.completed }}<span v-if="cat.total != null" class="text-slate-400 font-normal">/{{ cat.total }}</span><span v-else class="text-slate-400 font-normal"> Rekap</span>
           </span>
         </div>
       </div>
     </div>
+    <p v-if="tryoutSummary" class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">{{ tryoutSummary.total_recap ? `Skor terakhir ${tryoutSummary.latest_score} · terbaik ${tryoutSummary.best_score} · rata-rata ${tryoutSummary.average_score}` : 'Belum ada rekap tryout.' }}</p>
   </div>
 </template>
 
@@ -71,17 +72,17 @@ const props = withDefaults(
     categories?: Array<{
       name: string;
       completed: number;
-      total: number;
+          total: number | null;
       color: string;
     }>;
+    tryoutSummary?: { total_recap:number; latest_score:number|null; best_score:number|null; average_score:number|null } | null;
+    showViewAll?: boolean;
   }>(),
   {
-    percentage: 68,
-    categories: () => [
-      { name: 'Materi', completed: 12, total: 18, color: 'bg-blue-600' },
-      { name: 'Latihan Soal', completed: 342, total: 500, color: 'bg-amber-400' },
-      { name: 'Tryout', completed: 3, total: 5, color: 'bg-teal-500' }
-    ]
+    percentage: 0,
+    categories: () => [],
+    tryoutSummary: null,
+    showViewAll: true,
   }
 );
 

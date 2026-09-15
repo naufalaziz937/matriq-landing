@@ -8,6 +8,7 @@
         </span>
       </div>
       <button
+        v-if="!readOnly"
         @click="showAddModal = true"
         class="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
       >
@@ -21,8 +22,8 @@
       <div
         v-for="task in tasks"
         :key="task.id"
-        @click="$emit('toggle-task', task.id)"
-        class="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group border border-transparent hover:border-slate-100"
+        @click="!readOnly && $emit('toggle-task', task.id)"
+        class="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-50 transition-all group border border-transparent hover:border-slate-100"
         :class="{ 'opacity-80 bg-slate-50/50': task.is_completed }"
       >
         <div class="flex items-center gap-3">
@@ -58,6 +59,7 @@
         </button>
       </div>
     </div>
+    <p v-if="!tasks.length" class="rounded-2xl bg-slate-50 p-4 text-center text-xs text-slate-500">Belum ada aktivitas belajar hari ini.</p>
 
     <!-- Quick Add Task Modal -->
     <div
@@ -147,9 +149,11 @@ interface Task {
 const props = withDefaults(
   defineProps<{
     tasks?: Task[];
+    readOnly?: boolean;
   }>(),
   {
-    tasks: () => []
+    tasks: () => [],
+    readOnly: false
   }
 );
 
