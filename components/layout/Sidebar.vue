@@ -7,6 +7,7 @@
   />
 
   <aside
+    data-lenis-prevent
     class="fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(280px,86vw)] flex-col justify-between overflow-y-auto border-r border-slate-100 bg-white shadow-2xl transition-transform duration-300 lg:z-30 lg:w-[260px] lg:translate-x-0 lg:shadow-none"
     :class="isOpen ? 'translate-x-0' : '-translate-x-full'"
     data-purpose="navigation-sidebar"
@@ -32,9 +33,12 @@
 
       <!-- Navigation Menu Items -->
       <nav class="px-3.5 space-y-1.5 font-semibold text-[14.5px]">
+        <template v-for="item in navItems" :key="item.name">
+        <div v-if="item.type === 'divider'" class="px-4 pb-1 pt-4 text-[11px] font-bold uppercase tracking-wide text-slate-400">{{ item.label }}</div>
         <button
-          v-for="item in navItems"
-          :key="item.name"
+          v-else
+          type="button"
+          :aria-current="activeNav === item.name ? 'page' : undefined"
           @click="selectNav(item.name)"
           :class="[
             'w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl transition-all duration-200 text-left font-semibold',
@@ -63,6 +67,7 @@
             {{ item.badge }}
           </span>
         </button>
+        </template>
       </nav>
     </div>
 
@@ -90,45 +95,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed } from 'vue';
+import { useAuthStore } from '~/stores/api/auth';
+import { activeMenuForPath, getMenuByRole } from '~/utils/roles';
 import {
   X,
   Home,
   MapPin,
+  Route,
   CalendarCheck2,
   Target,
   Trophy,
   LineChart,
   Calendar,
-  FileText
+  FileText,
+  Users,
+  User,
+  BookOpen,
+  Award,
+  GraduationCap,
+  ClipboardList,
+  TrendingUp,
+  ShieldCheck,
+  Download,
+  Settings
 } from 'lucide-vue-next';
-
-withDefaults(defineProps<{
-  isOpen?: boolean;
-}>(), {
-  isOpen: false,
-});
 
 const emit = defineEmits<{
   (e: 'navigate', navName: string): void;
   (e: 'close'): void;
 }>();
 
-const activeNav = ref('home');
+const props = withDefaults(defineProps<{
+  isOpen?: boolean;
+}>(), {
+  isOpen: false,
+});
 
-const navItems = [
-  { name: 'home', label: 'Home', icon: Home },
-  { name: 'roadmap', label: 'Roadmap', icon: MapPin },
-  { name: 'study-plan', label: 'Study Plan', icon: CalendarCheck2 },
-  { name: 'practice', label: 'Practice', icon: Target },
-  { name: 'tryout', label: 'Tryout', icon: Trophy, badge: 'HOT' },
-  { name: 'analytics', label: 'Analytics', icon: LineChart },
-  { name: 'calendar', label: 'Calendar', icon: Calendar },
-  { name: 'notes', label: 'Notes', icon: FileText }
-];
+const route = useRoute();
+const authStore = useAuthStore();
+const activeNav = computed(() => activeMenuForPath(route.path, authStore.user?.role));
+const isOpen = computed(() => props.isOpen);
+const icons: Record<string, any> = { Home, MapPin, Route, CalendarCheck2, Target, Trophy, LineChart, Calendar, FileText, Users, User, BookOpen, Award, GraduationCap, ClipboardList, TrendingUp, ShieldCheck, Download, Settings };
+const navItems = computed(() => getMenuByRole(authStore.user?.role).map((item) => ({
+  ...item, icon: icons[item.icon],
+})));
 
 function selectNav(name: string) {
-  activeNav.value = name;
   emit('navigate', name);
   emit('close');
 }

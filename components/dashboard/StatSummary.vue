@@ -24,6 +24,7 @@
       <div>
         <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Belajar</span>
         <p class="text-base font-extrabold text-slate-900">{{ totalHours }} Jam</p>
+        <p class="text-[10px] text-slate-400">{{ totalQuestions }} soal · {{ accuracy == null ? '—' : `${accuracy}%` }} akurasi</p>
       </div>
     </div>
 
@@ -41,10 +42,14 @@ withDefaults(
   defineProps<{
     streakDays?: number;
     totalHours?: number;
+    totalQuestions?: number;
+    accuracy?: number | null;
   }>(),
   {
     streakDays: 7,
-    totalHours: 48
+    totalHours: 0,
+    totalQuestions: 0,
+    accuracy: null
   }
 );
 </script>

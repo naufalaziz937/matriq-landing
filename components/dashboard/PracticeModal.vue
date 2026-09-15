@@ -1,6 +1,7 @@
 <template>
   <div
     v-if="isOpen"
+    data-lenis-prevent
     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in select-none"
     @click.self="$emit('close')"
   >
@@ -96,7 +97,7 @@
       <!-- Footer Buttons -->
       <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
         <span class="text-xs text-slate-500 font-medium">
-          {{ isSubmitted ? 'Skor telah dicatat ke riwayat belajar!' : 'Pilih satu opsi yang paling tepat' }}
+          {{ isSubmitted ? 'Latihan contoh selesai. Hasil ini tidak dicatat sebagai progres.' : 'Pilih satu opsi yang paling tepat' }}
         </span>
 
         <div class="flex gap-2">
