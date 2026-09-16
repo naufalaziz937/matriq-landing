@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="isOpen"
+    v-if="false && isOpen"
     class="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm lg:hidden"
     aria-hidden="true"
     @click="$emit('close')"
@@ -8,7 +8,7 @@
 
   <aside
     data-lenis-prevent
-    class="fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(280px,86vw)] flex-col justify-between overflow-y-auto border-r border-slate-100 bg-white shadow-2xl transition-transform duration-300 lg:z-30 lg:w-[260px] lg:translate-x-0 lg:shadow-none"
+    class="fixed inset-y-0 left-0 z-50 hidden h-dvh w-[min(280px,86vw)] flex-col justify-between overflow-y-auto border-r border-slate-100 bg-white shadow-2xl transition-transform duration-300 lg:z-30 lg:flex lg:w-[260px] lg:translate-x-0 lg:shadow-none"
     :class="isOpen ? 'translate-x-0' : '-translate-x-full'"
     data-purpose="navigation-sidebar"
   >

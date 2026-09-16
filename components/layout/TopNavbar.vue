@@ -5,7 +5,7 @@
   >
     <button
       type="button"
-      class="shrink-0 rounded-xl bg-white p-2.5 text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-blue-600 lg:hidden"
+      class="hidden shrink-0 rounded-xl bg-white p-2.5 text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-blue-600"
       aria-label="Buka menu navigasi"
       @click="$emit('toggle-sidebar')"
     >
@@ -218,10 +218,9 @@ watch(profilePhoto, () => {
 });
 
 onMounted(async () => {
-  authStore.initializeAuth();
+  await authStore.restoreAuth();
 
-  if (authStore.token) {
-    await authStore.fetchCurrentUser();
+  if (authStore.isAuthenticated) {
     if (Number(authStore.user?.role) === 2 && !dashboardStore.stats) await dashboardStore.fetchUserDashboard();
   }
 });

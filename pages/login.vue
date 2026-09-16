@@ -1,99 +1,378 @@
 <script setup>
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+} from "lucide-vue-next";
 import { useAuthStore } from "~/stores/api/auth";
 
 definePageMeta({ layout: false });
 
 useHead({
-  title: "Masuk ke MatrIQ - UTBK Companion",
+  title: "Masuk - MatrIQ UTBK Companion",
   link: [
     { rel: "preconnect", href: "https://fonts.googleapis.com" },
     { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
-    { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" },
+    {
+      rel: "stylesheet",
+      href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+    },
   ],
 });
 
+const route = useRoute();
 const authStore = useAuthStore();
+
 const email = ref("");
 const password = ref("");
 const remember = ref(true);
 const showPassword = ref(false);
 const formError = ref("");
+const successMessage = ref("");
+
+onMounted(() => {
+  if (route.query.registered === "1") {
+    successMessage.value =
+      "Akun berhasil dibuat! Silakan masuk dengan email dan kata sandi Anda.";
+  }
+});
 
 async function handleLogin() {
   formError.value = "";
-  const result = await authStore.login(email.value.trim().toLowerCase(), password.value);
+  successMessage.value = "";
+
+  const trimmedEmail = email.value.trim();
+  if (!trimmedEmail) {
+    formError.value = "Email wajib diisi.";
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    formError.value = "Format email tidak valid.";
+    return;
+  }
+
+  if (!password.value) {
+    formError.value = "Password wajib diisi.";
+    return;
+  }
+
+  const result = await authStore.login(
+    trimmedEmail.toLowerCase(),
+    password.value,
+  );
   if (result.success) {
-    if (import.meta.client) localStorage.setItem("justLoggedIn", "1");
+    if (import.meta.client) {
+      localStorage.setItem("justLoggedIn", "1");
+    }
     await navigateTo("/dashboard");
   } else {
-    formError.value = result.message || "Email atau password salah.";
+    formError.value =
+      result.message || "Email atau password yang Anda masukkan salah.";
   }
+}
+
+function handleForgotPassword() {
+  alert(
+    "Untuk saat ini, silakan hubungi tim bantuan MatrIQ jika Anda lupa kata sandi akun.",
+  );
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-800 antialiased font-jakarta">
-    <header class="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-      <NuxtLink to="/" class="flex items-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-blue-500 text-xl font-extrabold text-white shadow-md shadow-blue-500/20">M</div>
-        <span class="text-2xl font-extrabold tracking-tight text-blue-900">Matr<span class="text-blue-600">IQ</span></span>
+  <div
+    data-lenis-prevent
+    class="relative flex h-dvh max-h-dvh min-h-dvh w-full flex-col justify-between items-center overflow-x-hidden overflow-y-auto sm:overflow-hidden bg-gradient-to-b from-[#F8FAFC] via-[#F1F5FD] to-[#EBF2FE] text-slate-800 font-sans antialiased selection:bg-blue-100 selection:text-blue-700"
+  >
+    <!-- Ambient Decorative Background Elements -->
+    <div
+      class="pointer-events-none absolute -top-24 left-1/2 -z-0 h-[360px] w-[580px] -translate-x-1/2 rounded-full bg-blue-200/40 blur-3xl animate-ambient-glow"
+    ></div>
+    <div
+      class="pointer-events-none absolute bottom-6 -left-20 -z-0 h-72 w-72 rounded-full bg-amber-200/25 blur-3xl"
+    ></div>
+    <div
+      class="pointer-events-none absolute top-1/3 -right-20 -z-0 h-80 w-80 rounded-full bg-blue-300/20 blur-3xl"
+    ></div>
+
+    <!-- Soft floating math/learning background symbols -->
+    <div
+      class="pointer-events-none absolute left-12 top-10 hidden select-none text-2xl font-black text-blue-200/70 sm:block animate-float-slow"
+    >
+      ∑
+    </div>
+    <div
+      class="pointer-events-none absolute bottom-20 left-20 hidden select-none text-xl font-bold text-blue-300/50 sm:block animate-mascot"
+      style="animation-delay: 1s"
+    >
+      π
+    </div>
+    <div
+      class="pointer-events-none absolute right-16 top-16 hidden select-none text-xl font-bold text-blue-200/70 sm:block animate-float-slow"
+      style="animation-delay: 1.5s"
+    >
+      ∫dx
+    </div>
+    <div
+      class="pointer-events-none absolute bottom-24 right-20 hidden select-none text-xl font-black text-amber-200/70 sm:block animate-mascot"
+      style="animation-delay: 0.5s"
+    >
+      √x
+    </div>
+
+    <!-- Micro Header / Top spacing container -->
+    <header
+      class="z-10 flex w-full flex-shrink-0 items-center justify-center px-4 pt-3 sm:pt-4"
+    >
+      <NuxtLink
+        to="/"
+        class="inline-block transition-transform hover:scale-105"
+        aria-label="Beranda MatrIQ"
+      >
+        <img
+          src="/mascot/logo-teks.svg"
+          alt="MatrIQ Logo"
+          class="h-9 sm:h-10 w-auto object-contain drop-shadow-sm"
+        />
       </NuxtLink>
-      <div class="flex items-center gap-2 text-sm">
-        <span class="hidden text-slate-500 sm:inline">Belum punya akun?</span>
-        <NuxtLink to="/register" class="rounded-xl border border-blue-200 bg-white px-4 py-2 font-bold text-blue-600 shadow-sm transition hover:border-blue-300 hover:text-blue-700">Daftar Sekarang</NuxtLink>
-      </div>
     </header>
 
-    <main class="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-6 px-4 pb-8 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:px-10 lg:pb-14">
-      <section class="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-blue-800 to-blue-600 p-8 text-white shadow-xl shadow-blue-900/10 lg:col-span-6 lg:flex lg:min-h-[650px] lg:flex-col lg:justify-between">
-        <div class="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-orange-400/20 blur-3xl"></div>
-        <div class="relative z-10">
-          <div class="mb-7 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-100"><span class="text-amber-300">✨</span> Teman belajar UTBK kamu</div>
-          <h1 class="max-w-lg text-4xl font-extrabold leading-tight tracking-tight">Langkah kecil hari ini, hasil besar nanti! 🚀</h1>
-          <p class="mt-4 max-w-md text-sm leading-relaxed text-blue-100">Susun target, latihan terarah, dan pantau progres belajarmu bersama MatrIQ.</p>
-          <div class="mt-10 grid max-w-md grid-cols-3 gap-3">
-            <div class="rounded-2xl border border-white/10 bg-white/10 p-3 text-center"><div class="text-xl font-extrabold">84</div><div class="mt-1 text-[11px] text-blue-200">Hari roadmap</div></div>
-            <div class="rounded-2xl border border-white/10 bg-white/10 p-3 text-center"><div class="text-xl font-extrabold">5</div><div class="mt-1 text-[11px] text-blue-200">Subtes UTBK</div></div>
-            <div class="rounded-2xl border border-white/10 bg-white/10 p-3 text-center"><div class="text-xl font-extrabold">18K+</div><div class="mt-1 text-[11px] text-blue-200">Siswa aktif</div></div>
-          </div>
+    <!-- Main Single-Centered Vertical Content (Max 420px) -->
+    <main
+      class="relative z-10 my-auto flex w-full max-w-[420px] flex-col items-center px-4 py-2 sm:py-0"
+    >
+      <!-- Mascot Avatar & Friendly Badge -->
+      <div class="relative mb-2 flex flex-col items-center">
+        <div class="relative animate-mascot">
+          <img
+            src="/mascot/senang.svg"
+            alt="MatrIQ Mascot"
+            class="h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-md select-none pointer-events-none"
+          />
+          <span
+            class="absolute -bottom-1 -right-1 flex items-center gap-1 rounded-full border border-blue-100 bg-white px-2 py-0.5 text-[10px] font-extrabold text-blue-600 shadow-sm select-none"
+          >
+            <span
+              class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"
+            ></span>
+            Siap UTBK!
+          </span>
         </div>
-        <div class="relative z-10 flex items-end justify-between gap-4">
-          <div class="rounded-2xl border border-white/10 bg-white/10 p-4 text-sm text-blue-100">"Belajar konsisten jadi lebih ringan kalau punya arah."</div>
-          <img src="/mascot/senang.svg" alt="Maskot MatrIQ" class="h-36 w-36 object-contain drop-shadow-xl" />
-        </div>
-      </section>
+      </div>
 
-      <section class="flex items-center lg:col-span-6">
-        <div class="mx-auto w-full max-w-md rounded-3xl bg-white p-6 shadow-xl shadow-blue-900/5 sm:p-10">
-          <div class="mb-7">
-            <div class="mb-2 inline-flex rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600">🚀 Akun Siswa</div>
-            <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">👋 Selamat Datang Kembali!</h2>
-            <p class="mt-2 text-sm text-slate-500">Masuk ke akun MatrIQ dan lanjutkan target belajarmu.</p>
+      <!-- Title & Subtitle -->
+      <div class="mb-3 sm:mb-4 text-center">
+        <h1 class="text-xl font-bold tracking-tight text-slate-900">
+          Selamat datang kembali
+        </h1>
+        <p class="mt-0.5 text-xs font-medium text-slate-500">
+          Masuk ke akun MatrIQ kamu.
+        </p>
+      </div>
+
+      <!-- Clean Card Container -->
+      <div
+        class="relative w-full rounded-2xl border border-blue-100/90 bg-white p-5 sm:p-6 shadow-sm shadow-blue-950/5"
+      >
+        <!-- Success Banner -->
+        <div
+          v-if="successMessage"
+          role="status"
+          class="mb-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700"
+        >
+          <CheckCircle2 class="h-4 w-4 flex-shrink-0 text-emerald-600" />
+          <span class="text-[11px] font-semibold leading-tight">{{
+            successMessage
+          }}</span>
+        </div>
+
+        <!-- Inline Error Banner -->
+        <div
+          v-if="formError"
+          role="alert"
+          class="mb-3.5 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs font-medium text-rose-700"
+        >
+          <AlertCircle class="h-4 w-4 flex-shrink-0 text-rose-500" />
+          <span class="text-[11px] font-semibold leading-tight">{{
+            formError
+          }}</span>
+        </div>
+
+        <!-- Login Form -->
+        <form class="space-y-3.5" @submit.prevent="handleLogin">
+          <!-- Field 1: Email -->
+          <div>
+            <label
+              for="login-email"
+              class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+            >
+              Email
+            </label>
+            <div class="group relative">
+              <div
+                class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 transition-colors group-focus-within:text-blue-600"
+              >
+                <Mail class="h-4 w-4" />
+              </div>
+              <input
+                id="login-email"
+                v-model="email"
+                type="email"
+                autocomplete="email"
+                placeholder="nama@email.com"
+                required
+                class="h-10 sm:h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3.5 text-xs sm:text-sm font-medium text-slate-900 outline-none transition-all focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
           </div>
 
-          <button type="button" class="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
-            <span class="text-lg font-bold text-blue-500">G</span> Masuk dengan Google
+          <!-- Field 2: Password -->
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <label
+                for="login-password"
+                class="block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+              >
+                Password
+              </label>
+              <button
+                type="button"
+                class="text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline transition"
+                @click="handleForgotPassword"
+              >
+                Lupa password?
+              </button>
+            </div>
+            <div class="group relative">
+              <div
+                class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 transition-colors group-focus-within:text-blue-600"
+              >
+                <Lock class="h-4 w-4" />
+              </div>
+              <input
+                id="login-password"
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="current-password"
+                placeholder="••••••••"
+                required
+                class="h-10 sm:h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 text-xs sm:text-sm font-medium text-slate-900 outline-none transition-all focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              />
+              <button
+                type="button"
+                :aria-label="
+                  showPassword ? 'Sembunyikan password' : 'Tampilkan password'
+                "
+                class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 transition-colors hover:text-slate-700 focus:text-blue-600 focus:outline-none"
+                @click="showPassword = !showPassword"
+              >
+                <EyeOff v-if="showPassword" class="h-4 w-4" />
+                <Eye v-else class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Remember Me Checkbox -->
+          <div class="flex items-center pt-0.5">
+            <label class="flex cursor-pointer select-none items-center gap-2">
+              <input
+                id="rememberMe"
+                v-model="remember"
+                type="checkbox"
+                class="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 transition"
+              />
+              <span
+                class="text-xs font-medium text-slate-600 hover:text-slate-800"
+                >Ingat saya</span
+              >
+            </label>
+          </div>
+
+          <!-- Primary Action CTA Button -->
+          <button
+            type="submit"
+            :disabled="authStore.isLoading"
+            class="mt-2 flex h-10 sm:h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#2563EB] text-xs sm:text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition-all duration-150 hover:bg-[#1D4ED8] hover:shadow-blue-600/30 active:scale-[0.985] focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Loader2
+              v-if="authStore.isLoading"
+              class="h-4 w-4 animate-spin text-white"
+            />
+            <span>{{ authStore.isLoading ? "Memproses..." : "Masuk" }}</span>
           </button>
-          <div class="mb-5 flex items-center gap-3 text-xs font-semibold uppercase text-slate-400"><span class="h-px flex-1 bg-slate-200"></span><span class="whitespace-nowrap">atau dengan email</span><span class="h-px flex-1 bg-slate-200"></span></div>
+        </form>
 
-          <form class="space-y-4" @submit.prevent="handleLogin">
-            <p v-if="formError" role="alert" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{{ formError }}</p>
-            <div><label for="login-email" class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">Email / No. WhatsApp</label><input id="login-email" v-model="email" type="email" autocomplete="email" placeholder="nama@email.com" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100"></div>
-            <div><div class="mb-1 flex items-center justify-between"><label for="login-password" class="block text-xs font-bold uppercase tracking-wider text-slate-700">Kata Sandi</label><NuxtLink to="/lupa-password" class="text-xs font-semibold text-blue-600 hover:underline">Lupa kata sandi?</NuxtLink></div><div class="relative"><input id="login-password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-24 text-sm font-medium outline-none transition focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100"><button type="button" class="absolute inset-y-0 right-3 text-xs font-semibold text-blue-600" @click="showPassword = !showPassword">{{ showPassword ? "Sembunyikan" : "Tampilkan" }}</button></div></div>
-            <label class="flex items-center gap-2 text-xs text-slate-500"><input v-model="remember" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"> Ingat saya di perangkat ini</label>
-            <button type="submit" :disabled="authStore.isLoading" class="w-full rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{{ authStore.isLoading ? "Memproses..." : "Masuk ke Dashboard" }} <span class="ml-1">→</span></button>
-          </form>
-
-          <div class="mt-6 rounded-2xl border border-orange-100 bg-orange-50 p-4"><div class="text-sm font-bold text-orange-800">Belum siap berlangganan?</div><p class="mt-1 text-xs leading-relaxed text-orange-700">Coba fitur latihan dan roadmap belajar MatrIQ secara gratis.</p></div>
-          <p class="mt-6 text-center text-xs text-slate-500">Belum punya akun? <NuxtLink to="/register" class="font-bold text-blue-600 hover:text-blue-700">Daftar gratis sekarang</NuxtLink></p>
+        <!-- Account Switch Footer -->
+        <div
+          class="mt-4 border-t border-slate-100 pt-3.5 text-center text-xs font-medium text-slate-500"
+        >
+          Belum punya akun?
+          <NuxtLink
+            to="/register"
+            class="ml-1 font-bold text-blue-600 hover:text-blue-700 hover:underline"
+          >
+            Daftar
+          </NuxtLink>
         </div>
-      </section>
+      </div>
     </main>
-    <footer class="px-6 py-4 text-center text-xs text-slate-400">© 2025 MatrIQ UTBK Companion. Platform belajar terstruktur & terpercaya persiapan SNBT.</footer>
+
+    <!-- Clean Bottom Sub-footer (Strictly fits desktop viewport) -->
+    <footer
+      class="z-10 w-full flex-shrink-0 px-4 py-2 sm:py-3 text-center text-[11px] text-slate-400"
+    >
+      <span>© 2026 MatrIQ. UTBK Companion platform.</span>
+    </footer>
   </div>
 </template>
 
 <style scoped>
-.font-jakarta { font-family: "Plus Jakarta Sans", sans-serif; }
-</style>
+@keyframes gentleFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
 
+@keyframes softFloatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+@keyframes softPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.04);
+  }
+}
+
+.animate-mascot {
+  animation: gentleFloat 3.8s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: softFloatSlow 7s ease-in-out infinite;
+}
+
+.animate-ambient-glow {
+  animation: softPulse 6s ease-in-out infinite;
+}
+</style>

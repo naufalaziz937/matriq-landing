@@ -1,4 +1,15 @@
 <script setup>
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+} from "lucide-vue-next";
 import { useAuthStore } from "~/stores/api/auth";
 
 definePageMeta({ layout: false });
@@ -8,265 +19,489 @@ useHead({
   link: [
     { rel: "preconnect", href: "https://fonts.googleapis.com" },
     { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
-    { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" },
+    {
+      rel: "stylesheet",
+      href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+    },
   ],
 });
 
 const authStore = useAuthStore();
+
 const form = reactive({
-  name: "",
+  nama: "",
   email: "",
-  status: "k12",
-  target: "Institut Teknologi Bandung",
+  no_hp: "",
+  gender: "L", // "L" atau "P"
   password: "",
-  agree: true,
+  konfirmasi_password: "",
 });
+
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
 const formError = ref("");
-const formSuccess = ref(false);
+const isSubmitting = ref(false);
 
 async function handleRegister() {
   formError.value = "";
-  if (!form.agree) {
-    formError.value = "Setujui ketentuan layanan terlebih dahulu.";
+
+  const nama = form.nama.trim();
+  const email = form.email.trim().toLowerCase();
+  const no_hp = form.no_hp.trim();
+  const gender = form.gender;
+  const password = form.password;
+  const konfirmasi_password = form.konfirmasi_password;
+
+  if (
+    !nama ||
+    !email ||
+    !no_hp ||
+    !gender ||
+    !password ||
+    !konfirmasi_password
+  ) {
+    formError.value = "Semua kolom wajib diisi.";
     return;
   }
-  const result = await authStore.register({
-    nama: form.name.trim(),
-    email: form.email.trim().toLowerCase(),
-    password: form.password,
-  });
-  if (result.success) {
-    formSuccess.value = true;
-  } else {
-    formError.value = result.message || "Registrasi gagal.";
-  }
-}
 
-function handleGoogleSignup() {
-  formError.value = "Pendaftaran Google belum tersedia.";
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    formError.value = "Format alamat email belum valid.";
+    return;
+  }
+
+  if (password.length < 8) {
+    formError.value = "Password minimal terdiri dari 8 karakter.";
+    return;
+  }
+
+  if (password !== konfirmasi_password) {
+    formError.value = "Password dan konfirmasi password tidak cocok.";
+    return;
+  }
+
+  isSubmitting.value = true;
+  try {
+    const regResult = await authStore.register({
+      nama,
+      email,
+      no_hp,
+      gender,
+      password,
+    });
+
+    if (!regResult.success) {
+      formError.value =
+        regResult.message || "Registrasi gagal. Silakan coba lagi.";
+      return;
+    }
+
+    // Auto-login setelah registrasi agar langsung terhubung ke sesi & onboarding
+    const loginResult = await authStore.login(email, password);
+    if (loginResult.success) {
+      if (import.meta.client) {
+        localStorage.setItem("justLoggedIn", "1");
+      }
+      await navigateTo("/dashboard");
+    } else {
+      // Jika auto-login tidak langsung berhasil, arahkan ke login dengan status sukses
+      await navigateTo("/login?registered=1");
+    }
+  } catch (err) {
+    formError.value = "Terjadi kendala saat memproses pendaftaran.";
+  } finally {
+    isSubmitting.value = false;
+  }
 }
 </script>
 
 <template>
-  <div class="min-h-screen text-slate-800 antialiased flex flex-col justify-between relative overflow-x-hidden font-jakarta bg-brand-bg">
-    <!-- Subtle Background Accent Blobs -->
-    <div class="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-orange-100/70 blur-3xl pointer-events-none"></div>
-    <div class="absolute top-1/2 -left-32 w-96 h-96 rounded-full bg-blue-100/70 blur-3xl pointer-events-none"></div>
+  <div
+    data-lenis-prevent
+    class="relative flex h-dvh max-h-dvh min-h-dvh w-full flex-col justify-between overflow-x-hidden overflow-y-auto sm:overflow-hidden bg-[#F8FAFC] text-slate-800 antialiased selection:bg-blue-600 selection:text-white"
+  >
+    <!-- Subtle Ambient Background Decorations -->
+    <div
+      class="pointer-events-none fixed -left-20 -top-24 -z-10 h-80 w-80 rounded-full bg-blue-100/60 blur-3xl"
+    ></div>
+    <div
+      class="pointer-events-none fixed -right-20 top-1/3 -z-10 h-96 w-96 rounded-full bg-blue-50/70 blur-3xl"
+    ></div>
+    <div
+      class="pointer-events-none fixed -bottom-24 left-1/3 -z-10 h-80 w-80 rounded-full bg-amber-50/50 blur-3xl"
+    ></div>
 
-    <!-- Top Header -->
-    <header class="w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between z-10">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-blue-500 flex items-center justify-center shadow-md shadow-blue-500/20 text-white font-extrabold text-xl">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-        </div>
-        <div>
-          <span class="text-2xl font-extrabold tracking-tight text-blue-900">Matr<span class="text-blue-600">IQ</span></span>
-          <span class="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 bg-orange-50 text-orange-600 rounded-full border border-orange-200">Daftar Akun Baru</span>
-        </div>
-      </div>
+    <!-- Soft floating math symbols -->
+    <div
+      class="pointer-events-none absolute left-12 top-10 hidden select-none text-2xl font-black text-blue-200/60 sm:block animate-float-slow"
+    >
+      ∑
+    </div>
+    <div
+      class="pointer-events-none absolute bottom-20 left-20 hidden select-none text-xl font-bold text-blue-300/40 sm:block animate-mascot"
+      style="animation-delay: 1s"
+    >
+      π
+    </div>
+    <div
+      class="pointer-events-none absolute right-16 top-16 hidden select-none text-xl font-bold text-blue-200/60 sm:block animate-float-slow"
+      style="animation-delay: 1.5s"
+    >
+      ∫dx
+    </div>
+    <div
+      class="pointer-events-none absolute bottom-24 right-20 hidden select-none text-xl font-black text-amber-200/60 sm:block animate-mascot"
+      style="animation-delay: 0.5s"
+    >
+      √x
+    </div>
 
-      <div class="flex items-center gap-3 text-sm">
-        <span class="text-slate-500 hidden sm:inline">Sudah punya akun?</span>
-        <NuxtLink to="/login" class="font-bold text-blue-600 hover:text-blue-700 bg-white border border-blue-200 hover:border-blue-300 px-4 py-2 rounded-xl transition shadow-sm hover:shadow">
-          Masuk di Sini
+    <!-- Top Minimal Bar: Logo & Mascot Companion -->
+    <header class="w-full flex-shrink-0 px-4 pt-2.5 sm:px-6 sm:pt-3 z-10">
+      <div class="mx-auto flex max-w-[470px] items-center justify-between">
+        <!-- Official Logo MatrIQ -->
+        <NuxtLink
+          to="/"
+          class="flex items-center gap-2 transition-transform hover:scale-105"
+          aria-label="Beranda MatrIQ"
+        >
+          <img
+            src="/mascot/logo-teks.svg"
+            alt="MatrIQ Logo"
+            class="h-8 sm:h-9 w-auto object-contain drop-shadow-sm"
+          />
+          <span
+            class="hidden rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-blue-700 uppercase sm:inline-block"
+          >
+            UTBK Companion
+          </span>
         </NuxtLink>
+
+        <!-- Mascot MatrIQ with breathing float -->
+        <div class="relative group select-none">
+          <img
+            src="/mascot/senang.svg"
+            alt="MatrIQ Mascot"
+            class="h-12 w-12 sm:h-14 sm:w-14 object-contain animate-breathe drop-shadow-md select-none pointer-events-none"
+          />
+        </div>
       </div>
     </header>
 
-    <!-- Main Content Box -->
-    <main class="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 flex-1 flex items-center justify-center z-10">
-      <div class="w-full grid grid-cols-1 lg:grid-cols-12 bg-white border border-blue-100/80 rounded-3xl shadow-xl shadow-blue-900/5 overflow-hidden my-4">
-
-        <!-- Left Column: Registration Benefits & Onboarding Preview (5 cols) -->
-        <div class="lg:col-span-5 bg-gradient-to-br from-indigo-900 via-blue-800 to-blue-600 text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
-          <div class="absolute -right-16 -bottom-16 w-56 h-56 rounded-full bg-amber-400/20 blur-2xl pointer-events-none"></div>
-
-          <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-xs font-semibold text-blue-100 mb-6">
-              <span class="text-amber-400">✨</span> Onboarding Belajar Personal
-            </div>
-            <h1 class="text-3xl font-extrabold tracking-tight leading-snug mb-3">
-              Mulai Perjalanan Menembus PTN Impianmu! 🎯
-            </h1>
-            <p class="text-blue-100 text-sm leading-relaxed mb-6">
-              Daftar gratis dalam 1 menit dan dapatkan roadmap belajar otomatis yang disesuaikan dengan target jurusan dan kemampuan awalmu.
-            </p>
-
-            <!-- Step Feature List -->
-            <div class="space-y-3.5 my-6">
-              <div class="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <div class="w-7 h-7 rounded-xl bg-amber-400 text-slate-900 font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
-                <div>
-                  <div class="text-sm font-bold text-white">Diagnostic Test Instan</div>
-                  <div class="text-xs text-blue-200">Ketahui titik awal kekuatan & kelemahan 5 subtes UTBK.</div>
-                </div>
-              </div>
-
-              <div class="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <div class="w-7 h-7 rounded-xl bg-blue-400 text-slate-900 font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
-                <div>
-                  <div class="text-sm font-bold text-white">Roadmap Bertahap H-84</div>
-                  <div class="text-xs text-blue-200">Jadwal harian terstruktur dari fondasi hingga simulasi tryout.</div>
-                </div>
-              </div>
-
-              <div class="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <div class="w-7 h-7 rounded-xl bg-emerald-400 text-slate-900 font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</div>
-                <div>
-                  <div class="text-sm font-bold text-white">Prediksi Peluang PTN</div>
-                  <div class="text-xs text-blue-200">Algoritma passing grade real-time sesuai skor tryout berkalilmu.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Mascot & Community Counter -->
-          <div class="pt-4 border-t border-white/15 flex items-center gap-4">
-            <div class="flex -space-x-2">
-              <div class="w-9 h-9 rounded-full bg-amber-400 border-2 border-blue-900 flex items-center justify-center font-bold text-xs text-slate-900">TB</div>
-              <div class="w-9 h-9 rounded-full bg-blue-400 border-2 border-blue-900 flex items-center justify-center font-bold text-xs text-white">AN</div>
-              <div class="w-9 h-9 rounded-full bg-emerald-400 border-2 border-blue-900 flex items-center justify-center font-bold text-xs text-white">RF</div>
-            </div>
-            <div class="text-xs text-blue-100">
-              <strong class="text-white">18.400+ siswa kelas 12 & gap year</strong> aktif berjuang di MatrIQ hari ini.
-            </div>
-          </div>
-
+    <!-- Centered Single Card Container (Zero desktop scroll, compact height) -->
+    <main
+      class="relative z-10 flex flex-1 items-center justify-center px-4 py-1 sm:py-2"
+    >
+      <div
+        class="w-full max-w-[470px] rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xl shadow-slate-200/50 transition-all"
+      >
+        <!-- Card Header -->
+        <div class="mb-3 sm:mb-3.5 text-center">
+          <h1
+            class="text-xl font-bold tracking-tight text-slate-900 leading-tight sm:text-[22px]"
+          >
+            Buat akun MatrIQ
+          </h1>
+          <p class="mt-0.5 text-xs font-medium text-slate-500">
+            Mulai perjalanan belajarmu.
+          </p>
         </div>
 
-        <!-- Right Column: Registration Form (7 cols) -->
-        <div class="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-center">
-          <div class="max-w-md mx-auto w-full">
-            <!-- Heading -->
-            <div class="mb-6">
-              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-bold mb-2">
-                <span>🚀 Akun Belajar Siswa</span>
+        <!-- Compact Form -->
+        <form class="space-y-2.5" @submit.prevent="handleRegister">
+          <!-- Row 1: Nama Lengkap -->
+          <div>
+            <label
+              for="reg-nama"
+              class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+            >
+              Nama Lengkap / Panggilan <span class="text-rose-500">*</span>
+            </label>
+            <div class="group relative">
+              <div
+                class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition-colors group-focus-within:text-blue-600"
+              >
+                <User class="h-4 w-4" />
               </div>
-              <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Buat Akun MatrIQ</h2>
-              <p class="text-slate-500 text-sm mt-1">Lengkapi data diri untuk personalisasi rencana belajarmu.</p>
+              <input
+                id="reg-nama"
+                v-model="form.nama"
+                type="text"
+                autocomplete="name"
+                placeholder="Nama lengkap / panggilan"
+                required
+                class="h-10 sm:h-10.5 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+
+          <!-- Row 2: Email -->
+          <div>
+            <label
+              for="reg-email"
+              class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+            >
+              Email <span class="text-rose-500">*</span>
+            </label>
+            <div class="group relative">
+              <div
+                class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition-colors group-focus-within:text-blue-600"
+              >
+                <Mail class="h-4 w-4" />
+              </div>
+              <input
+                id="reg-email"
+                v-model="form.email"
+                type="email"
+                autocomplete="email"
+                placeholder="nama@email.com"
+                required
+                class="h-10 sm:h-10.5 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+
+          <!-- Row 3: 2-Column (No. HP + Gender) -->
+          <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <!-- No. HP -->
+            <div>
+              <label
+                for="reg-nohp"
+                class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+              >
+                No. WhatsApp / HP <span class="text-rose-500">*</span>
+              </label>
+              <div class="group relative">
+                <div
+                  class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition-colors group-focus-within:text-blue-600"
+                >
+                  <Phone class="h-4 w-4" />
+                </div>
+                <input
+                  id="reg-nohp"
+                  v-model="form.no_hp"
+                  type="tel"
+                  autocomplete="tel"
+                  placeholder="08xxxxxxxxxx"
+                  required
+                  class="h-10 sm:h-10.5 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
             </div>
 
-            <!-- Social Signup (Google) -->
-            <button type="button" @click="handleGoogleSignup" class="w-full flex items-center justify-center gap-3 py-3 px-4 border border-slate-200 hover:border-slate-300 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm shadow-sm transition mb-5">
-              <svg class="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-              Daftar Cepat dengan Google
-            </button>
-
-            <!-- Divider -->
-            <div class="relative flex items-center justify-center mb-5">
-              <div class="border-t border-slate-200 w-full"></div>
-              <span class="bg-white px-3 text-xs font-semibold text-slate-400 uppercase">atau isi formulir</span>
+            <!-- Gender Selector -->
+            <div>
+              <label
+                class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+              >
+                Jenis Kelamin <span class="text-rose-500">*</span>
+              </label>
+              <div
+                class="flex h-10 sm:h-10.5 items-center rounded-xl border border-slate-200 bg-slate-50 p-1"
+              >
+                <button
+                  type="button"
+                  :class="[
+                    'flex-1 h-full rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer',
+                    form.gender === 'L'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900',
+                  ]"
+                  @click="form.gender = 'L'"
+                >
+                  Laki-laki
+                </button>
+                <button
+                  type="button"
+                  :class="[
+                    'flex-1 h-full rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer',
+                    form.gender === 'P'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900',
+                  ]"
+                  @click="form.gender = 'P'"
+                >
+                  Perempuan
+                </button>
+              </div>
             </div>
+          </div>
 
-            <!-- Form Fields -->
-            <form class="space-y-3.5" @submit.prevent="handleRegister">\n              <p v-if="formError" role="alert" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{{ formError }}</p>\n              <p v-if="formSuccess" role="status" class="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Akun berhasil dibuat. Silakan masuk untuk melanjutkan.</p>
-              <div>
-                <label for="reg-name" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nama Lengkap</label>
-                <input
-                  id="reg-name"
-                  v-model="form.name"
-                  type="text"
-                  placeholder="Contoh: Theo Budianto"
-                  class="w-full px-4 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-xl text-sm font-medium text-slate-800 transition outline-none"
-                  required
+          <!-- Row 4: 2-Column (Password + Konfirmasi Password) -->
+          <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <!-- Password -->
+            <div>
+              <label
+                for="reg-password"
+                class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+              >
+                Password <span class="text-rose-500">*</span>
+              </label>
+              <div class="group relative">
+                <div
+                  class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition-colors group-focus-within:text-blue-600"
                 >
-              </div>
-
-              <div>
-                <label for="reg-email" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Email Aktif</label>
-                <input
-                  id="reg-email"
-                  v-model="form.email"
-                  type="email"
-                  placeholder="nama@email.com"
-                  class="w-full px-4 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-xl text-sm font-medium text-slate-800 transition outline-none"
-                  required
-                >
-              </div>
-
-              <!-- Target Kampus & Status Siswa (2 columns) -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label for="reg-status" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Status Belajar</label>
-                  <select id="reg-status" v-model="form.status" class="w-full px-3 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-xl text-sm font-medium text-slate-800 transition outline-none">
-                    <option value="k12">Kelas 12 SMA/SMK</option>
-                    <option value="gap">Gap Year (Alumni)</option>
-                    <option value="k11">Kelas 11 SMA</option>
-                  </select>
+                  <Lock class="h-4 w-4" />
                 </div>
-                <div>
-                  <label for="reg-target" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Target PTN Pilihan 1</label>
-                  <input
-                    id="reg-target"
-                    v-model="form.target"
-                    type="text"
-                    placeholder="Misal: ITB, UI, UGM"
-                    class="w-full px-3 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-xl text-sm font-medium text-slate-800 transition outline-none"
-                  >
-                </div>
-              </div>
-
-              <div>
-                <label for="reg-password" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Kata Sandi</label>
                 <input
                   id="reg-password"
                   v-model="form.password"
-                  type="password"
-                  placeholder="Minimal 8 karakter kombinasi"
-                  class="w-full px-4 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-xl text-sm font-medium text-slate-800 transition outline-none"
+                  :type="showPassword ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  placeholder="••••••••"
                   required
+                  class="h-10 sm:h-10.5 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-9 text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  type="button"
+                  :aria-label="
+                    showPassword ? 'Sembunyikan password' : 'Tampilkan password'
+                  "
+                  class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 transition hover:text-slate-600 focus:outline-none"
+                  @click="showPassword = !showPassword"
                 >
-                <p class="text-[11px] text-slate-400 mt-1">Gunakan kombinasi huruf, angka, dan simbol.</p>
+                  <EyeOff v-if="showPassword" class="h-4 w-4" />
+                  <Eye v-else class="h-4 w-4" />
+                </button>
               </div>
-
-              <div class="pt-1">
-                <label class="flex items-start gap-2 cursor-pointer">
-                  <input v-model="form.agree" type="checkbox" class="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
-                  <span class="text-xs text-slate-600 leading-tight">
-                    Saya menyetujui <NuxtLink to="/syarat" class="text-blue-600 font-bold hover:underline">Ketentuan Layanan</NuxtLink> & <NuxtLink to="/privasi" class="text-blue-600 font-bold hover:underline">Kebijakan Privasi</NuxtLink> MatrIQ.
-                  </span>
-                </label>
-              </div>
-
-              <!-- Submit CTA -->
-              <button type="submit" :disabled="authStore.isLoading" class="w-full py-3.5 px-6 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-orange-500/25 transition flex items-center justify-center gap-2 mt-2">
-                <span>{{ authStore.isLoading ? "Membuat akun..." : "Buat Akun & Mulai Belajar Gratis" }}</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </button>
-            </form>
-
-            <!-- Back to login footer -->
-            <div class="mt-6 text-center text-xs text-slate-500">
-              Sudah memiliki akun terdaftar? <NuxtLink to="/login" class="font-bold text-blue-600 hover:text-blue-700">Masuk di sini</NuxtLink>
             </div>
 
+            <!-- Konfirmasi Password -->
+            <div>
+              <label
+                for="reg-confirm"
+                class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-700"
+              >
+                Konfirmasi <span class="text-rose-500">*</span>
+              </label>
+              <div class="group relative">
+                <div
+                  class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 transition-colors group-focus-within:text-blue-600"
+                >
+                  <Lock class="h-4 w-4" />
+                </div>
+                <input
+                  id="reg-confirm"
+                  v-model="form.konfirmasi_password"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  placeholder="••••••••"
+                  required
+                  class="h-10 sm:h-10.5 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-9 text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  type="button"
+                  :aria-label="
+                    showConfirmPassword
+                      ? 'Sembunyikan konfirmasi password'
+                      : 'Tampilkan konfirmasi password'
+                  "
+                  class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 transition hover:text-slate-600 focus:outline-none"
+                  @click="showConfirmPassword = !showConfirmPassword"
+                >
+                  <EyeOff v-if="showConfirmPassword" class="h-4 w-4" />
+                  <Eye v-else class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
 
+          <!-- Inline Error Banner -->
+          <div
+            v-if="formError"
+            role="alert"
+            class="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2 text-xs font-medium text-rose-700"
+          >
+            <AlertCircle class="h-4 w-4 flex-shrink-0 text-rose-600" />
+            <span class="text-[11px] font-semibold leading-tight">{{
+              formError
+            }}</span>
+          </div>
+
+          <!-- Submit Button CTA -->
+          <div class="pt-1">
+            <button
+              type="submit"
+              :disabled="isSubmitting || authStore.isLoading"
+              class="flex h-10 sm:h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#2563EB] text-xs sm:text-sm font-bold text-white shadow-md shadow-blue-600/20 transition-all hover:bg-[#1D4ED8] active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-75"
+            >
+              <Loader2
+                v-if="isSubmitting || authStore.isLoading"
+                class="h-4 w-4 animate-spin text-white"
+              />
+              <span>{{
+                isSubmitting || authStore.isLoading
+                  ? "Membuat akun..."
+                  : "Daftar"
+              }}</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Bottom Form Footer -->
+        <div
+          class="mt-3 border-t border-slate-100 pt-2.5 text-center text-xs text-slate-500"
+        >
+          Sudah punya akun?
+          <NuxtLink
+            to="/login"
+            class="ml-1 font-bold text-[#2563EB] hover:text-blue-800 transition"
+          >
+            Masuk
+          </NuxtLink>
+        </div>
       </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="w-full max-w-7xl mx-auto px-6 py-4 text-center text-xs text-slate-400">
-      <p>© 2025 MatrIQ UTBK Companion. Platform belajar terstruktur & terpercaya persiapan SNBT.</p>
+    <!-- Legal & Micro Footer (Fits firmly in viewport) -->
+    <footer
+      class="w-full flex-shrink-0 py-2 sm:py-2.5 text-center text-[11px] text-slate-400 z-10"
+    >
+      <p>© 2026 MatrIQ UTBK Companion. Seluruh hak cipta dilindungi.</p>
     </footer>
   </div>
 </template>
 
 <style scoped>
-.font-jakarta {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.03);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes softFloatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+.animate-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+.animate-mascot {
+  animation: float 3.8s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: softFloatSlow 7s ease-in-out infinite;
 }
 </style>
-
-

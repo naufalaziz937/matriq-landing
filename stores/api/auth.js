@@ -5,8 +5,11 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isLoading = ref(false);
   const error = ref("");
+  const isAuthInitialized = ref(false);
 
   const isActivated = computed(() => user.value?.is_activate === true);
+  const isAuthenticated = computed(() => Boolean(token.value && user.value));
+  let restorePromise = null;
 
   // ======================================================
   // HELPERS
@@ -39,6 +42,7 @@ export const useAuthStore = defineStore("auth", () => {
   function saveAuth(data) {
     token.value = data?.token || null;
     user.value = data?.user || null;
+    isAuthInitialized.value = true;
 
     if (!import.meta.client) {
       return;
@@ -335,7 +339,7 @@ export const useAuthStore = defineStore("auth", () => {
   // ======================================================
 
   function initializeAuth() {
-    if (!import.meta.client) {
+    if (!import.meta.client || isAuthInitialized.value) {
       return;
     }
     user.value = null;
@@ -368,6 +372,34 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  async function restoreAuth() {
+    if (!import.meta.client) return false;
+    if (isAuthInitialized.value) return isAuthenticated.value;
+    if (restorePromise) return restorePromise;
+
+    restorePromise = (async () => {
+      initializeAuth();
+
+      if (!token.value) {
+        user.value = null;
+        isAuthInitialized.value = true;
+        return false;
+      }
+
+      const currentUser = await fetchCurrentUser();
+      if (!currentUser) {
+        logout();
+      }
+
+      isAuthInitialized.value = true;
+      return isAuthenticated.value;
+    })().finally(() => {
+      restorePromise = null;
+    });
+
+    return restorePromise;
+  }
+
   // ======================================================
   // LOGOUT
   // ======================================================
@@ -376,6 +408,7 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
     token.value = null;
     error.value = "";
+    isAuthInitialized.value = true;
 
     if (!import.meta.client) {
       return;
@@ -393,6 +426,8 @@ export const useAuthStore = defineStore("auth", () => {
     token,
     isLoading,
     error,
+    isAuthInitialized,
+    isAuthenticated,
     isActivated,
 
     register,
@@ -402,6 +437,7 @@ export const useAuthStore = defineStore("auth", () => {
     resetPassword,
 
     initializeAuth,
+    restoreAuth,
     logout,
   };
 });
