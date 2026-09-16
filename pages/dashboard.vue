@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: "default" });
+definePageMeta({ layout: "default", middleware: "auth" });
 
 import { ref, computed, onMounted, watch } from "vue";
 import {
@@ -24,7 +24,6 @@ import {
 import { useAuthStore } from "~/stores/api/auth";
 import { useOnboardingStore } from "~/stores/api/onboarding";
 import { useUserDashboardStore } from "~/stores/api/userDashboard";
-import { createDefaultDashboardData } from "~/data/dashboard";
 import type { DashboardData, OnboardingData } from "~/types/dashboard";
 import AiParserModal from "~/components/dashboard/AiParserModal.vue";
 import FeatureGrid from "~/components/dashboard/FeatureGrid.vue";
@@ -52,6 +51,15 @@ const userDashboardStore = useUserDashboardStore();
 const authStore = useAuthStore();
 const isAdmin = computed(() => Number(authStore.user?.role) === 1);
 const isTutor = computed(() => Number(authStore.user?.role) === 3);
+const isStudent = computed(() => Number(authStore.user?.role) === 2);
+const isRoleDashboardLoading = ref(false);
+const isDashboardBootstrapping = computed(
+  () =>
+    !authStore.isAuthInitialized ||
+    !authStore.isAuthenticated ||
+    (isAdmin.value && isRoleDashboardLoading.value) ||
+    (isStudent.value && !userDashboardStore.dashboard && !userDashboardStore.error),
+);
 const adminUsers = ref<any[]>([]);
 const adminTotalUsers = ref<number | null>(null);
 const adminActiveUsers = ref<number | null>(null);
@@ -113,7 +121,7 @@ const onboardingError = ref("");
 // STATE DASHBOARD
 // ======================================================
 
-const dashboardData = ref<DashboardData>(createDefaultDashboardData());
+const dashboardData = ref<DashboardData | null>(null);
 
 // ======================================================
 // STATE LAIN
@@ -164,7 +172,6 @@ function mapUserDashboard(data: any) {
     timeZone: "Asia/Jakarta",
   });
   dashboardData.value = {
-    ...dashboardData.value,
     user: {
       id: data.user.user_id,
       name: data.user.nama,
@@ -180,7 +187,7 @@ function mapUserDashboard(data: any) {
       total_questions: Number(stats.total_questions || 0),
       average_accuracy:
         stats.average_accuracy == null ? null : Number(stats.average_accuracy),
-      target_questions: Number(daily.target_questions || 50),
+      target_questions: Number(daily.target_questions || 0),
       completed_questions: Number(daily.completed_questions || 0),
       overall_progress_pct: category.total_materials
         ? Math.round(
@@ -322,17 +329,6 @@ async function handleOnboardingSubmit(data: OnboardingData) {
       throw new Error(result.message || "Gagal menyimpan profil");
     }
 
-    const user = result.data;
-    dashboardData.value.user = {
-      ...dashboardData.value.user,
-      id: user.user_id ?? user.id,
-      name: user.nama ?? user.name ?? dashboardData.value.user.name,
-      role: user.role === 1 ? "Admin" : user.role === 3 ? "Tutor" : "Siswa",
-      class_level: user.profile?.kelas ?? dashboardData.value.user.class_level,
-      avatar_initial: (user.nama ?? user.name ?? "U").charAt(0).toUpperCase(),
-      foto_profile: user.foto_profile ?? null,
-    };
-
     showOnboardingModal.value = false;
 
     showToast("Profil berhasil dilengkapi! 🎉");
@@ -363,30 +359,22 @@ function handleSkipOnboarding() {
 // ======================================================
 
 onMounted(async () => {
-  authStore.initializeAuth();
   handleLayoutQuery();
 
-  const user = authStore.user;
-  const token = authStore.token;
-
-  if (!user || !token) {
+  if (!authStore.isAuthenticated) {
     await navigateTo("/login");
     return;
   }
 
-  // Tampilkan identitas dari auth store sebelum request dashboard selesai.
-  dashboardData.value.user = {
-    ...dashboardData.value.user,
-    id: user.user_id ?? user.id,
-    name: user.nama ?? user.name ?? dashboardData.value.user.name,
-    role: user.role === 1 ? "Admin" : user.role === 3 ? "Tutor" : "Siswa",
-    class_level: user.profile?.kelas ?? dashboardData.value.user.class_level,
-    avatar_initial: (user.nama ?? user.name ?? "U").charAt(0).toUpperCase(),
-    foto_profile: user.foto_profile ?? null,
-  };
+  const user = authStore.user;
 
   if (Number(user.role) === 1) {
-    await fetchAdminSummary();
+    isRoleDashboardLoading.value = true;
+    try {
+      await fetchAdminSummary();
+    } finally {
+      isRoleDashboardLoading.value = false;
+    }
     return;
   }
   if (Number(user.role) === 3) return;
@@ -417,13 +405,14 @@ watch(showLoginAlert, (isOpen, wasOpen) => {
 // ======================================================
 
 const filteredTasks = computed(() => {
+  const tasks = dashboardData.value?.tasks || [];
   if (!searchQuery.value) {
-    return dashboardData.value.tasks;
+    return tasks;
   }
 
   const q = searchQuery.value.toLowerCase();
 
-  return dashboardData.value.tasks.filter((t: any) =>
+  return tasks.filter((t: any) =>
     t.title.toLowerCase().includes(q),
   );
 });
@@ -489,7 +478,7 @@ useAppShell({
   },
   navigate: handleNavigation,
   get dbConnected() {
-    return dashboardData.value.dbStatus?.isConnected;
+    return dashboardData.value?.dbStatus?.isConnected;
   },
 });
 const route = useRoute();
@@ -505,7 +494,7 @@ watch(() => route.query, handleLayoutQuery);
 // ======================================================
 
 const adminGreetingName = computed(
-  () => dashboardData.value.user?.name?.split(" ")[0] || "Admin",
+  () => authStore.user?.nama?.split(" ")[0] || authStore.user?.name?.split(" ")[0] || "Admin",
 );
 
 // Maskot dipilih dari asset 16.svg yang user upload (pose thumbs-up).
@@ -656,7 +645,19 @@ function adminRoleLabel(role: number | string) {
 </script>
 
 <template>
-  <div>
+  <ClientOnly>
+    <div>
+    <div
+      v-if="isDashboardBootstrapping"
+      class="mx-auto grid w-full max-w-[1536px] grid-cols-12 gap-4 px-4 pb-8 pt-2 sm:gap-6 sm:px-6 lg:gap-7 lg:px-8 lg:pb-10"
+      aria-label="Memuat dashboard"
+    >
+      <div class="col-span-12 h-44 animate-pulse rounded-3xl bg-slate-200" />
+      <div class="col-span-12 h-64 animate-pulse rounded-3xl bg-slate-200 xl:col-span-8" />
+      <div class="col-span-12 h-64 animate-pulse rounded-3xl bg-slate-200 xl:col-span-4" />
+    </div>
+
+    <template v-else>
     <div
       v-if="isAdmin"
       class="mx-auto flex w-full max-w-[1536px] flex-1 flex-col gap-6 px-4 pb-8 pt-2 sm:px-6 lg:px-8 lg:pb-10"
@@ -1085,8 +1086,8 @@ function adminRoleLabel(role: number | string) {
       v-else
       class="mx-auto grid w-full max-w-[1536px] flex-1 grid-cols-12 gap-4 px-4 pb-8 pt-2 sm:gap-6 sm:px-6 lg:gap-7 lg:px-8 lg:pb-10"
     >
-      <div
-        v-if="userDashboardStore.error"
+      <template v-if="userDashboardStore.error">
+        <div
         role="alert"
         class="col-span-12 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-rose-200 bg-white p-4 text-sm text-rose-700"
       >
@@ -1098,6 +1099,8 @@ function adminRoleLabel(role: number | string) {
           Coba Lagi
         </button>
       </div>
+      </template>
+      <template v-else>
       <section
         class="col-span-12 flex flex-col gap-4 sm:gap-6 xl:col-span-8"
         data-purpose="primary-content-column"
@@ -1174,7 +1177,10 @@ function adminRoleLabel(role: number | string) {
           :show-view-all="false"
         />
       </aside>
+      </template>
     </div>
+
+    </template>
 
     <div
       v-if="isTryoutRecapOpen && Number(authStore.user?.role) === 2"
@@ -1276,5 +1282,10 @@ function adminRoleLabel(role: number | string) {
       @submit="handleOnboardingSubmit"
       @skip="handleSkipOnboarding"
     />
-  </div>
+    </div>
+
+    <template #fallback>
+      <div class="min-h-screen" aria-hidden="true" />
+    </template>
+  </ClientOnly>
 </template>

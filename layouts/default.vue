@@ -3,6 +3,7 @@ import { computed, provide, ref, shallowRef, watch } from "vue";
 import Sidebar from "~/components/layout/Sidebar.vue";
 import TopNavbar from "~/components/layout/TopNavbar.vue";
 import FloatingSupport from "~/components/layout/FloatingSupport.vue";
+import MobileBottomNavigation from "~/components/layout/MobileBottomNavigation.vue";
 import { useAuthStore } from "~/stores/api/auth";
 import { getMenuByRole, canAccessPage } from "~/utils/roles";
 import { appShellKey, type PageShellActions } from "~/composables/useAppShell";
@@ -58,10 +59,11 @@ async function openAiParser() {
         @open-ai-parser="openAiParser"
         @toggle-sidebar="isSidebarOpen = !isSidebarOpen"
       />
-      <main class="w-full min-w-0 flex-1">
+      <main class="w-full min-w-0 flex-1 pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-0">
         <slot />
       </main>
     </div>
+    <MobileBottomNavigation @navigate="handleNavigate" />
     <FloatingSupport />
   </div>
 </template>
