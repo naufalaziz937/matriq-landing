@@ -103,78 +103,6 @@
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <!-- NO HP -->
-
-                <div class="space-y-1.5">
-                  <label
-                    for="no_hp"
-                    class="block text-xs font-semibold text-slate-700"
-                  >
-                    No. WhatsApp / HP
-                    <span class="text-rose-500">*</span>
-                  </label>
-
-                  <div class="relative">
-                    <div
-                      class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-                    >
-                      <span
-                        class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200"
-                      >
-                        +62
-                      </span>
-                    </div>
-
-                    <input
-                      id="no_hp"
-                      v-model="form.no_hp"
-                      type="tel"
-                      required
-                      placeholder="81234567890"
-                      class="block w-full pl-16 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none placeholder:text-slate-400 text-slate-800"
-                    />
-                  </div>
-                </div>
-
-                <!-- GENDER -->
-
-                <div class="space-y-1.5">
-                  <label class="block text-xs font-semibold text-slate-700">
-                    Jenis Kelamin
-                    <span class="text-rose-500">*</span>
-                  </label>
-
-                  <div class="grid grid-cols-2 gap-2">
-                    <label
-                      class="relative flex items-center justify-center p-2.5 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-700"
-                    >
-                      <input
-                        v-model="form.gender"
-                        type="radio"
-                        name="gender"
-                        value="L"
-                        class="sr-only"
-                      />
-
-                      <span class="text-xs font-medium"> 👦 Laki-laki </span>
-                    </label>
-
-                    <label
-                      class="relative flex items-center justify-center p-2.5 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-700"
-                    >
-                      <input
-                        v-model="form.gender"
-                        type="radio"
-                        name="gender"
-                        value="P"
-                        class="sr-only"
-                      />
-
-                      <span class="text-xs font-medium"> 👧 Perempuan </span>
-                    </label>
-                  </div>
-                </div>
-
                 <!-- FOTO PROFILE -->
 
                 <div class="sm:col-span-2 space-y-1.5">
@@ -663,10 +591,6 @@ const {
 // ======================================================
 
 const form = reactive({
-  no_hp: "",
-
-  gender: "L",
-
   foto_profile: null,
 
   sekolah: "",
@@ -861,10 +785,6 @@ function handleSkip() {
 
 function handleSubmit() {
   emit("submit", {
-    no_hp: form.no_hp,
-
-    gender: form.gender,
-
     foto_profile: form.foto_profile,
 
     sekolah: form.sekolah,

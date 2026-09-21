@@ -2,9 +2,10 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   AlertCircle, BookOpenCheck, ChevronLeft, ChevronRight, CircleCheck, Clock3,
-  EllipsisVertical, Eye, FilePenLine, LibraryBig, LoaderCircle, Pencil, Plus,
+  EllipsisVertical, Eye, FileUp, FilePenLine, LibraryBig, LoaderCircle, Pencil, Plus,
   RefreshCw, Search, Trash2,
 } from 'lucide-vue-next';
+import ImportQuestionsModal from '~/components/question-bank/ImportQuestionsModal.vue';
 import { useAuthStore } from '~/stores/api/auth';
 import { useQuestionBankStore } from '~/stores/api/questionBank';
 import { canAccessPage, ROLES } from '~/utils/roles';
@@ -18,6 +19,7 @@ const menuId = ref<string | number | null>(null);
 const deleteTarget = ref<any>(null);
 const actionError = ref('');
 const actionBusy = ref(false);
+const showImport = ref(false);
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 const subtests = [
@@ -119,7 +121,10 @@ onMounted(async () => {
   <div v-if="ready" class="mx-auto w-full max-w-[1536px] min-w-0 px-4 pb-8 pt-2 sm:px-6 lg:px-8 lg:pb-10">
     <header class="mb-5 flex flex-wrap items-center justify-between gap-4">
       <div><h1 class="font-headline-md text-headline-md text-on-surface">Bank Soal</h1><p class="mt-1 font-body-sm text-body-sm text-on-surface-variant">Kelola seluruh soal latihan MatrIQ.</p></div>
-      <NuxtLink v-if="canAccessPage(authStore.user?.role, 'question.create')" to="/question-bank/create" class="inline-flex items-center gap-2 rounded-2xl bg-primary-container px-4 py-2.5 font-label-sm text-label-sm text-white hover:bg-brand-700"><Plus class="h-4 w-4" />Tambah Soal</NuxtLink>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button v-if="canAccessPage(authStore.user?.role, 'question.ai-import')" type="button" class="inline-flex items-center gap-2 rounded-2xl border border-primary-container px-4 py-2.5 font-label-sm text-label-sm text-primary-container hover:bg-pale-blue transition-colors" @click="showImport = true"><FileUp class="h-4 w-4" />Import Excel</button>
+        <NuxtLink v-if="canAccessPage(authStore.user?.role, 'question.create')" to="/question-bank/create" class="inline-flex items-center gap-2 rounded-2xl bg-primary-container px-4 py-2.5 font-label-sm text-label-sm text-white hover:bg-brand-700"><Plus class="h-4 w-4" />Tambah Soal</NuxtLink>
+      </div>
     </header>
 
     <section class="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" aria-label="Ringkasan Bank Soal">
@@ -154,5 +159,7 @@ onMounted(async () => {
     </section>
 
     <div v-if="deleteTarget" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" @click.self="deleteTarget = null"><div role="alertdialog" aria-modal="true" aria-label="Konfirmasi hapus soal" class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><h2 class="font-title-md text-title-md text-on-surface">Hapus soal?</h2><p class="mt-2 font-body-sm text-body-sm text-on-surface-variant">Soal ini akan dihapus permanen.</p><p v-if="actionError" role="alert" class="mt-3 font-body-sm text-body-sm text-danger-rose">{{ actionError }}</p><div class="mt-6 flex justify-end gap-2"><button type="button" class="rounded-xl border border-soft-blue px-4 py-2.5 font-label-sm text-label-sm" @click="deleteTarget = null">Batal</button><button type="button" :disabled="actionBusy" class="inline-flex items-center gap-2 rounded-xl bg-danger-rose px-4 py-2.5 font-label-sm text-label-sm text-white disabled:opacity-60" @click="confirmDelete"><LoaderCircle v-if="actionBusy" class="h-4 w-4 animate-spin" />Hapus Soal</button></div></div></div>
+
+    <ImportQuestionsModal v-if="showImport" @close="showImport = false" @imported="refresh" />
   </div>
 </template>

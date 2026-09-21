@@ -91,5 +91,42 @@ export const useQuestionBankStore = defineStore('questionBank', {
     createQuestion(payload) { return this.submit('POST', '/admin/questions', payload); },
     updateQuestion(id, payload) { return this.submit('PUT', `/admin/questions/${encodeURIComponent(id)}`, payload); },
     deleteQuestion(id) { return this.submit('DELETE', `/admin/questions/${encodeURIComponent(id)}`); },
+    getImportBase() {
+      return Number(useAuthStore().user?.role) === 3 ? '/tutor/questions' : '/admin/questions';
+    },
+    async validateImport(formData) {
+      const auth = useAuthStore();
+      const apiBase = useRuntimeConfig().public.apiBase || 'http://localhost:4000/api';
+      return $fetch(`${this.getImportBase()}/import/validate`, {
+        baseURL: apiBase,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.token}` },
+        body: formData,
+      });
+    },
+    async importQuestions(formData) {
+      const auth = useAuthStore();
+      const apiBase = useRuntimeConfig().public.apiBase || 'http://localhost:4000/api';
+      this.isSubmitting = true;
+      this.error = '';
+      try {
+        return await $fetch(`${this.getImportBase()}/import`, {
+          baseURL: apiBase,
+          method: 'POST',
+          headers: { Authorization: `Bearer ${auth.token}` },
+          body: formData,
+        });
+      } catch (error) {
+        this.error = error?.data?.message || error?.message || 'Gagal mengimpor soal';
+        throw error;
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+    getTemplateUrl() {
+      const apiBase = useRuntimeConfig().public.apiBase || 'http://localhost:4000/api';
+      const auth = useAuthStore();
+      return { url: `${apiBase}${this.getImportBase()}/template`, token: auth.token };
+    },
   },
 });

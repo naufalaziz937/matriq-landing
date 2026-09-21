@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: "default", middleware: "auth" });
+definePageMeta({ layout: "default" });
 
 import { ref, computed, onMounted, watch } from "vue";
 import {
