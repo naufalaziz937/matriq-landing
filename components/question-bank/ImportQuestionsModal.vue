@@ -2,10 +2,12 @@
 import { ref, computed } from 'vue';
 import { X, Upload, Download, FileSpreadsheet, CheckCircle2, AlertCircle, LoaderCircle } from 'lucide-vue-next';
 import { useQuestionBankStore } from '~/stores/api/questionBank';
+import { useBodyScrollLock } from '~/composables/useBodyScrollLock';
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'imported'): void }>();
 
 const bank = useQuestionBankStore();
+useBodyScrollLock(ref(true));
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
@@ -127,7 +129,7 @@ function reset() {
 <template>
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4"
+    class="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden overscroll-contain bg-slate-950/50 p-4"
     @click.self="emit('close')"
   >
     <div
@@ -159,7 +161,7 @@ function reset() {
       </div>
 
       <!-- Body (scrollable) -->
-      <div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+      <div class="flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-5">
 
         <!-- Download template -->
         <div class="flex items-center justify-between rounded-2xl border border-soft-blue bg-surface-container-low px-4 py-3">

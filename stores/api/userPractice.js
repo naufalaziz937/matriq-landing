@@ -26,7 +26,7 @@ export const useUserPracticeStore = defineStore('userPractice', {
     },
     async startSession(materialId, level, count) {
       this.isStarting = true; this.error = '';
-      try { const response = await this.request('/session', { method: 'POST', body: { material_id: materialId, difficulty_level: level, question_count: count } }); this.currentSession = response.data; this.currentQuestionIndex = 0; this.feedbackByQuestion = {}; this.sessionResult = null; return response.data; }
+      try { const response = await this.request('/session', { method: 'POST', body: { material_id: materialId, subtest: this.selectedSubtest, difficulty_level: level, question_count: count } }); this.currentSession = response.data; this.currentQuestionIndex = 0; this.feedbackByQuestion = {}; this.sessionResult = null; return response.data; }
       catch (error) { this.error = error?.data?.message || 'Gagal memulai latihan.'; return null; }
       finally { this.isStarting = false; }
     },

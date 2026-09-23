@@ -7,7 +7,7 @@ export const useMaterialsStore = defineStore('materials', {
     summary: { total: null, active: null, draft: null },
     pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
     filters: { search: '', subtest: '', status: '', category: '' },
-    categories: [], isLoading: false, isSubmitting: false, error: '', requestId: 0,
+    categories: [], categoryOptions: [], isLoading: false, isLoadingCategories: false, isSubmitting: false, error: '', categoryError: '', requestId: 0, categoryRequestId: 0,
   }),
   actions: {
     base() { return useRuntimeConfig().public.apiBase || 'http://localhost:4000/api'; },
@@ -43,6 +43,19 @@ export const useMaterialsStore = defineStore('materials', {
         const response = await this.request('/admin/materials/summary');
         this.summary = response?.data ?? { total: null, active: null, draft: null };
       } catch { this.summary = { total: null, active: null, draft: null }; }
+    },
+    async fetchCategoryOptions(subtests) {
+      const current = ++this.categoryRequestId;
+      this.categoryOptions = [];
+      this.categoryError = '';
+      const selected = Array.isArray(subtests) ? subtests : [subtests].filter(Boolean);
+      if (!selected.length) return;
+      this.isLoadingCategories = true;
+      try {
+        const response = await this.request('/question-materials/categories', { query: { subtests: selected.join(',') } });
+        if (current === this.categoryRequestId) this.categoryOptions = Array.isArray(response?.data) ? response.data : [];
+      } catch (error) { if (current === this.categoryRequestId) this.categoryError = error?.data?.message || 'Gagal memuat kategori'; }
+      finally { if (current === this.categoryRequestId) this.isLoadingCategories = false; }
     },
     async fetchMaterialById(id) {
       this.selectedMaterial = null;

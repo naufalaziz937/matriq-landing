@@ -31,6 +31,7 @@ import {
 import { useAuthStore } from "~/stores/api/auth";
 import { useMaterialsStore } from "~/stores/api/materials";
 import { canAccessPage, ROLES } from "~/utils/roles";
+import { useBodyScrollLock } from "~/composables/useBodyScrollLock";
 
 type Material = {
   id: number;
@@ -38,6 +39,8 @@ type Material = {
   description?: string | null;
   subtest: string;
   category: string;
+  subtests?: Array<{ code: string; name: string }>;
+  categories?: Array<{ id: number; subtest: string; name: string }>;
   status: "active" | "draft";
   file_name: string;
   file_mime: string;
@@ -49,6 +52,7 @@ const authStore = useAuthStore();
 const store = useMaterialsStore();
 const ready = ref(false);
 const showForm = ref(false);
+useBodyScrollLock(showForm);
 const editing = ref<Material | null>(null);
 const deleteTarget = ref<Material | null>(null);
 const actionError = ref("");
@@ -61,8 +65,8 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined;
 const form = reactive({
   title: "",
   description: "",
-  subtest: "",
-  category: "",
+  subtests: [] as string[],
+  category_ids: [] as number[],
   status: "draft",
 });
 const subtests = [
@@ -73,7 +77,6 @@ const subtests = [
   { code: "LBI", label: "Literasi Bahasa Indonesia" },
   { code: "LBE", label: "Literasi Bahasa Inggris" },
   { code: "PM", label: "Penalaran Matematika" },
-  { code: "ALL", label: "Semua Subtes" },
 ];
 const cards = computed(() => [
   {
@@ -127,8 +130,8 @@ function resetForm() {
   Object.assign(form, {
     title: "",
     description: "",
-    subtest: "",
-    category: "",
+    subtests: [],
+    category_ids: [],
     status: "draft",
   });
   editing.value = null;
@@ -138,6 +141,7 @@ function resetForm() {
 }
 function openCreate() {
   resetForm();
+  store.categoryOptions = [];
   showForm.value = true;
 }
 function openEdit(item: Material) {
@@ -146,12 +150,32 @@ function openEdit(item: Material) {
   Object.assign(form, {
     title: item.title,
     description: item.description ?? "",
-    subtest: item.subtest,
-    category: item.category,
+    subtests: item.subtests?.map((entry) => entry.code) ?? [item.subtest],
+    category_ids: item.categories?.map((entry) => entry.id) ?? (item.category_id ? [item.category_id] : []),
     status: item.status,
   });
+  subtestsChanged();
   showForm.value = true;
 }
+const isAllSubtestsSelected = computed(() => form.subtests.length === subtests.length);
+const groupedCategories = computed(() => Object.fromEntries(form.subtests.map((code) => [code, store.categoryOptions.filter((item: any) => item.subtest === code)])));
+const isAllCategoriesSelected = computed(() => store.categoryOptions.length > 0 && store.categoryOptions.every((item: any) => form.category_ids.includes(Number(item.id))));
+async function subtestsChanged() {
+  await store.fetchCategoryOptions(form.subtests);
+  const allowed = new Set(store.categoryOptions.map((item: any) => Number(item.id)));
+  form.category_ids = form.category_ids.filter((id) => allowed.has(Number(id)));
+}
+function toggleAllSubtests(checked: boolean) { form.subtests = checked ? subtests.map((item) => item.code) : []; subtestsChanged(); }
+function toggleSubtest(code: string, checked: boolean) {
+  form.subtests = checked ? [...new Set([...form.subtests, code])] : form.subtests.filter((item) => item !== code);
+  subtestsChanged();
+}
+function toggleCategory(id: number, checked: boolean) { form.category_ids = checked ? [...new Set([...form.category_ids, id])] : form.category_ids.filter((item) => item !== id); }
+function toggleCategoryGroup(code: string, checked: boolean) {
+  const ids = (groupedCategories.value[code] || []).map((item: any) => Number(item.id));
+  form.category_ids = checked ? [...new Set([...form.category_ids, ...ids])] : form.category_ids.filter((id) => !ids.includes(id));
+}
+function toggleAllCategories(checked: boolean) { form.category_ids = checked ? store.categoryOptions.map((item: any) => Number(item.id)) : []; }
 function chooseFile(event: Event) {
   actionError.value = "";
   const selected = (event.target as HTMLInputElement).files?.[0] ?? null;
@@ -177,12 +201,14 @@ function changePage(next: number) {
 async function save() {
   if (store.isSubmitting) return;
   actionError.value = "";
+  if (!form.subtests.length || !form.category_ids.length) { actionError.value = "Pilih minimal satu subtes dan satu kategori."; return; }
   if (!file.value && !editing.value) {
     actionError.value = "Pilih file materi terlebih dahulu.";
     return;
   }
   const body = new FormData();
-  for (const [key, value] of Object.entries(form)) body.append(key, value);
+  body.append('title', form.title); body.append('description', form.description); body.append('status', form.status);
+  body.append('subtests', JSON.stringify(form.subtests)); body.append('category_ids', JSON.stringify(form.category_ids));
   if (file.value) body.append("file", file.value);
   try {
     if (editing.value) await store.updateMaterial(editing.value.id, body);
@@ -483,10 +509,10 @@ onMounted(async () => {
                   </div>
                 </td>
                 <td class="px-3 py-4 text-on-surface-variant">
-                  {{ item.subtest }}
+                  {{ item.subtests?.length === 7 ? 'Semua Subtes' : item.subtests?.map(entry => entry.code).join(', ') || item.subtest }}
                 </td>
                 <td class="px-3 py-4 text-on-surface-variant">
-                  {{ item.category }}
+                  {{ item.categories?.[0]?.name || item.category }}<template v-if="(item.categories?.length || 0) > 1"> +{{ item.categories!.length - 1 }}</template>
                 </td>
                 <td class="px-3 py-4 text-on-surface-variant">
                   {{ item.file_name.split(".").pop()?.toUpperCase() }}
@@ -564,10 +590,10 @@ onMounted(async () => {
             <div class="mt-3 flex flex-wrap gap-2 font-caption text-caption">
               <span
                 class="rounded-full bg-pale-blue px-2.5 py-1 text-primary-container"
-                >{{ item.subtest }}</span
+                >{{ item.subtests?.length === 7 ? 'Semua Subtes' : item.subtests?.map(entry => entry.code).join(', ') || item.subtest }}</span
               ><span
                 class="rounded-full bg-surface-container px-2.5 py-1 text-outline"
-                >{{ item.category }}</span
+                >{{ item.categories?.[0]?.name || item.category }}<template v-if="(item.categories?.length || 0) > 1"> +{{ item.categories!.length - 1 }}</template></span
               ><span
                 class="rounded-full px-2.5 py-1"
                 :class="
@@ -637,14 +663,14 @@ onMounted(async () => {
     </section>
     <div
       v-if="showForm"
-      class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4"
+      class="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden overscroll-contain bg-slate-950/50 p-4"
       @click.self="showForm = false"
     >
       <div
         role="dialog"
         aria-modal="true"
         :aria-label="editing ? 'Edit materi' : 'Tambah materi'"
-        class="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-6"
+        class="max-h-[90dvh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 shadow-2xl sm:p-6"
       >
         <div class="mb-5 flex items-center justify-between">
           <h2 class="font-title-md text-title-md text-on-surface">
@@ -668,39 +694,17 @@ onMounted(async () => {
               maxlength="200"
               class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm"
           /></label>
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label class="font-label-sm text-label-sm text-on-surface"
-              >Subtes<select
-                v-model="form.subtest"
-                required
-                class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm"
-              >
-                <option value="" disabled>Pilih subtes</option>
-                <option
-                  v-for="item in subtests"
-                  :key="item.code"
-                  :value="item.code"
-                >
-                  {{ item.label }}
-                </option>
-              </select></label
-            ><label class="font-label-sm text-label-sm text-on-surface"
-              >Kategori<input
-                v-model="form.category"
-                required
-                maxlength="100"
-                list="material-categories"
-                placeholder="Contoh: Aljabar"
-                class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm" /><datalist
-                id="material-categories"
-              >
-                <option
-                  v-for="item in store.categories"
-                  :key="item.id"
-                  :value="item.name"
-                /></datalist
-            ></label>
-          </div>
+          <fieldset class="rounded-2xl border border-outline-variant p-4"><legend class="px-1 font-label-sm text-label-sm text-on-surface">Subtes</legend>
+            <label class="mb-3 flex min-h-11 items-center gap-3 border-b border-soft-blue pb-3"><input type="checkbox" :checked="isAllSubtestsSelected" class="h-4 w-4 accent-primary-container" @change="toggleAllSubtests(($event.target as HTMLInputElement).checked)"><strong>Semua Subtes</strong></label>
+            <div class="grid gap-2 sm:grid-cols-2"><label v-for="item in subtests" :key="item.code" class="flex min-h-11 items-center gap-3 rounded-xl bg-surface-container-low px-3 py-2"><input type="checkbox" :checked="form.subtests.includes(item.code)" class="h-4 w-4 accent-primary-container" @change="toggleSubtest(item.code, ($event.target as HTMLInputElement).checked)"><span><strong class="block">{{ item.code }}</strong><small class="text-outline">{{ item.label }}</small></span></label></div>
+          </fieldset>
+          <fieldset class="rounded-2xl border border-outline-variant p-4"><legend class="px-1 font-label-sm text-label-sm text-on-surface">Kategori</legend>
+            <p v-if="!form.subtests.length" class="text-sm text-on-surface-variant">Pilih minimal satu subtes untuk menampilkan kategori.</p>
+            <template v-else><label class="mb-3 flex min-h-11 items-center gap-3 border-b border-soft-blue pb-3"><input type="checkbox" :checked="isAllCategoriesSelected" class="h-4 w-4 accent-primary-container" @change="toggleAllCategories(($event.target as HTMLInputElement).checked)"><strong>Semua Kategori</strong></label>
+              <p v-if="store.isLoadingCategories" class="text-sm text-on-surface-variant">Memuat kategori...</p>
+              <div v-else class="space-y-4"><section v-for="code in form.subtests" :key="code" class="rounded-xl bg-surface-container-low p-3"><div class="mb-2"><strong>{{ code }}</strong><span class="ml-2 text-xs text-outline">{{ subtests.find(item => item.code === code)?.label }}</span></div><p v-if="!groupedCategories[code]?.length" class="text-xs text-outline">Belum ada kategori untuk subtes ini.</p><template v-else><label class="flex min-h-10 items-center gap-2 font-medium"><input type="checkbox" :checked="groupedCategories[code].every((item:any) => form.category_ids.includes(Number(item.id)))" class="h-4 w-4 accent-primary-container" @change="toggleCategoryGroup(code, ($event.target as HTMLInputElement).checked)">Semua Kategori {{ code }}</label><div class="grid gap-1 sm:grid-cols-2"><label v-for="item in groupedCategories[code]" :key="item.id" class="flex min-h-10 items-center gap-2"><input type="checkbox" :checked="form.category_ids.includes(Number(item.id))" class="h-4 w-4 accent-primary-container" @change="toggleCategory(Number(item.id), ($event.target as HTMLInputElement).checked)">{{ item.name }}</label></div></template></section></div>
+            </template>
+          </fieldset>
           <label class="block font-label-sm text-label-sm text-on-surface"
             >Deskripsi<textarea
               v-model="form.description"

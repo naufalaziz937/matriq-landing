@@ -3,13 +3,13 @@ import { useAuthStore } from '~/stores/api/auth';
 
 export const useCampusesStore = defineStore('adminCampuses', {
   state: () => ({
-    campuses: [], programs: [], provinces: [], selectedCampus: null,
+    campuses: [], programs: [], provinces: [], cities: [], selectedCampus: null,
     summary: { campuses: null, activeCampuses: null, programs: null, activePrograms: null },
     campusPagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
     programPagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
     campusFilters: { search: '', status: '' }, programFilters: { search: '', status: '' },
-    isLoading: false, isLoadingPrograms: false, isSubmitting: false, error: '', programError: '',
-    campusRequestId: 0, programRequestId: 0,
+    isLoading: false, isLoadingPrograms: false, isLoadingCities: false, isSubmitting: false, error: '', programError: '', locationError: '',
+    campusRequestId: 0, programRequestId: 0, cityRequestId: 0,
   }),
   actions: {
     request(path, options = {}) {
@@ -23,6 +23,21 @@ export const useCampusesStore = defineStore('adminCampuses', {
     async fetchProvinces() {
       try { const response = await this.request('/wilayah/provinsi'); this.provinces = Array.isArray(response?.data) ? response.data : []; }
       catch { this.provinces = []; }
+    },
+    async fetchCities(provinceCode) {
+      const current = ++this.cityRequestId;
+      this.cities = [];
+      this.locationError = '';
+      if (!provinceCode) return;
+      this.isLoadingCities = true;
+      try {
+        const response = await this.request('/wilayah/kota-kab', { query: { provinsi_kode: provinceCode } });
+        if (current !== this.cityRequestId) return;
+        this.cities = Array.isArray(response?.data) ? response.data : [];
+      } catch (error) {
+        if (current !== this.cityRequestId) return;
+        this.locationError = error?.data?.message || 'Gagal memuat kota/kabupaten';
+      } finally { if (current === this.cityRequestId) this.isLoadingCities = false; }
     },
     async fetchCampuses() {
       const current = ++this.campusRequestId;

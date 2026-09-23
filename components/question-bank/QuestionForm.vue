@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
-import { useAuthStore } from '~/stores/api/auth';
+import { useQuestionDependenciesStore } from '~/stores/api/questionDependencies';
 import { LoaderCircle, Save } from 'lucide-vue-next';
 
 const props = defineProps<{ initial?: Record<string, any> | null; categories?: Array<{ id: string; name: string }>; saving?: boolean; tutor?: boolean; defaultStatus?: 'draft' | 'active' }>();
 const emit = defineEmits<{ (e: 'submit', payload: Record<string, any>): void }>();
 const error = ref('');
-const materials = ref<Array<{ id: number; title: string; subtest: string }>>([]);
-const auth = useAuthStore();
+const dependencies = useQuestionDependenciesStore();
+const hydrating = ref(false);
 const subtests = [
   { code: 'PU', label: 'Penalaran Umum' }, { code: 'PPU', label: 'Pengetahuan dan Pemahaman Umum' },
   { code: 'PBM', label: 'Pemahaman Bacaan dan Menulis' }, { code: 'PK', label: 'Pengetahuan Kuantitatif' },
@@ -21,29 +21,38 @@ const form = reactive({
   correct_answer: 'A', explanation: '', status: 'draft',
 });
 
-watch(() => props.initial, (item) => {
+watch(() => props.initial, async (item) => {
   if (!item) return;
+  hydrating.value = true;
   form.subtest = item.subtest ?? '';
   form.category = typeof item.category === 'object' ? item.category?.name ?? '' : item.category ?? '';
   form.difficulty = item.difficulty ?? 'medium';
   form.difficulty_level = Number(item.difficulty_level ?? ({ easy: 1, medium: 2, hard: 3 } as Record<string, number>)[item.difficulty] ?? 2);
-  form.material_id = item.material_id ?? '';
+  const materialId = item.material_id ?? '';
+  form.material_id = '';
   form.question = item.question ?? '';
   form.options = keys.map((key) => ({ key, text: item.options?.find((option: any) => option.key === key)?.text ?? '' }));
   form.correct_answer = item.correct_answer ?? 'A';
   form.explanation = item.explanation ?? '';
   form.status = ['active', 'draft', 'review'].includes(item.status) ? item.status : 'draft';
+  await dependencies.fetchCategories(form.subtest);
+  const categoryId = dependencies.categories.find((entry: any) => entry.subtest === form.subtest && entry.name === form.category)?.id;
+  await dependencies.fetchMaterials(form.subtest, categoryId);
+  form.material_id = materialId;
+  hydrating.value = false;
 }, { immediate: true });
 watch(() => props.defaultStatus, value => { if (!props.initial && ['draft','active'].includes(value || '')) form.status=value || 'draft'; }, { immediate:true });
 watch(() => form.subtest, async (code, previous) => {
-  if (previous && previous !== code) form.material_id = '';
-  materials.value = [];
-  if (!code) return;
-  try {
-    const result: any = await $fetch('/question-materials', { baseURL: useRuntimeConfig().public.apiBase, headers: { Authorization: `Bearer ${auth.token}` }, query: { subtest: code } });
-    materials.value = result.data || [];
-  } catch { error.value = 'Gagal memuat materi aktif.'; }
-}, { immediate: true });
+  if (hydrating.value) return;
+  if (previous !== code) { form.category = ''; form.material_id = ''; }
+  await dependencies.fetchCategories(code);
+});
+watch(() => form.category, async (category, previous) => {
+  if (hydrating.value) return;
+  if (previous !== category) form.material_id = '';
+  const categoryId = dependencies.categories.find((item: any) => item.subtest === form.subtest && item.name === category)?.id;
+  await dependencies.fetchMaterials(form.subtest, categoryId);
+});
 watch(() => form.difficulty_level, (level) => { form.difficulty = level === 1 ? 'easy' : level === 2 ? 'medium' : 'hard'; });
 
 function submit() {
@@ -69,11 +78,12 @@ function submit() {
         <select v-model="form.subtest" required class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm"><option value="" disabled>Pilih subtes</option><option v-for="item in subtests" :key="item.code" :value="item.code">{{ item.label }}</option></select>
       </label>
       <label class="font-label-sm text-label-sm text-on-surface">Kategori
-        <input v-model="form.category" list="question-categories" required maxlength="100" placeholder="Contoh: Penalaran Deduktif" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm">
-        <datalist id="question-categories"><option v-for="item in categories" :key="item.id" :value="item.name" /></datalist>
+        <select v-model="form.category" required :disabled="!form.subtest || dependencies.isLoadingCategories" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm disabled:opacity-60"><option value="" disabled>{{ dependencies.isLoadingCategories ? 'Memuat kategori...' : 'Pilih kategori' }}</option><option v-for="item in dependencies.categories" :key="item.id" :value="item.name">{{ item.name }}</option></select>
+        <span v-if="dependencies.categoryError" class="mt-1 block text-xs text-danger-rose">{{ dependencies.categoryError }}</span>
       </label>
       <label class="font-label-sm text-label-sm text-on-surface">Materi
-        <select v-model="form.material_id" required class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm"><option value="" disabled>Pilih materi aktif</option><option v-for="item in materials" :key="item.id" :value="item.id">{{ item.title }}</option></select>
+        <select v-model="form.material_id" required :disabled="!form.category || dependencies.isLoadingMaterials" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm disabled:opacity-60"><option value="" disabled>{{ dependencies.isLoadingMaterials ? 'Memuat materi...' : dependencies.materials.length ? 'Pilih materi aktif' : 'Belum ada materi aktif' }}</option><option v-for="item in dependencies.materials" :key="item.id" :value="item.id">{{ item.title }}</option></select>
+        <span v-if="dependencies.materialError" class="mt-1 block text-xs text-danger-rose">{{ dependencies.materialError }}</span>
       </label>
       <label class="font-label-sm text-label-sm text-on-surface">Tingkat Kesulitan
         <select v-model.number="form.difficulty_level" class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm"><option :value="1">Fundamental</option><option :value="2">Intermediate</option><option :value="3">Advanced</option><option :value="4">Mastery</option></select>

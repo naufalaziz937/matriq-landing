@@ -6,6 +6,7 @@ import {
 } from 'lucide-vue-next';
 import { useAuthStore } from '~/stores/api/auth';
 import { getRoleLabel, ROLES } from '~/utils/roles';
+import { useBodyScrollLock } from '~/composables/useBodyScrollLock';
 
 definePageMeta({ layout: 'default' });
 
@@ -35,6 +36,7 @@ const total = ref(0);
 const totalPages = ref(1);
 const ready = ref(false);
 const showForm = ref(false);
+useBodyScrollLock(showForm);
 const editingId = ref<number | null>(null);
 const deleteTarget = ref<UserRow | null>(null);
 let requestId = 0;
@@ -253,8 +255,8 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="showForm" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" @click.self="showForm = false">
-      <div role="dialog" aria-modal="true" :aria-label="isEditing ? 'Edit user' : 'Tambah user'" class="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
+    <div v-if="showForm" class="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden overscroll-contain bg-slate-950/50 p-4" @click.self="showForm = false">
+      <div role="dialog" aria-modal="true" :aria-label="isEditing ? 'Edit user' : 'Tambah user'" class="max-h-[90dvh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
         <div class="mb-5 flex items-center justify-between"><h2 class="text-xl font-extrabold text-slate-900">{{ isEditing ? 'Edit User' : 'Tambah User' }}</h2><button type="button" aria-label="Tutup formulir" class="rounded-xl p-2 text-slate-500 hover:bg-slate-100" @click="showForm = false"><X class="h-5 w-5" /></button></div>
         <form class="grid grid-cols-1 gap-4 sm:grid-cols-2" @submit.prevent="saveUser">
           <label class="text-xs font-bold text-slate-700 sm:col-span-2">Nama Lengkap <input v-model="form.nama" required maxlength="150" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium outline-none focus:border-blue-500"></label>
