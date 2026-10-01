@@ -10,7 +10,7 @@ const ready = ref(false), fileUrl = ref(''), readingProgress = ref(0), downloadi
 const material = computed(() => store.selectedMaterial?.material);
 const isPdf = computed(() => material.value?.file_mime === 'application/pdf');
 const applicableSubtests = computed(() => material.value?.subtests?.map(entry => entry.code) ?? (material.value?.subtest ? [material.value.subtest] : []));
-const subtestLabel = computed(() => applicableSubtests.value.length === 7 ? 'Semua Subtes' : applicableSubtests.value.join(', '));
+const subtestLabel = computed(() => applicableSubtests.value.join(', '));
 const card = 'min-w-0 rounded-3xl border border-soft-blue bg-surface-white p-4 shadow-sm sm:p-6';
 const statusText = value => ({ not_started: 'Belum Dimulai', in_progress: 'Sedang Dipelajari', completed: 'Selesai' })[value] || 'Belum Dimulai';
 watch(material, value => { readingProgress.value = Number(value?.progress || 0); });

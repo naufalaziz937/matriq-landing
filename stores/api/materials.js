@@ -73,6 +73,7 @@ export const useMaterialsStore = defineStore('materials', {
     createMaterial(body) { return this.submit('/admin/materials', 'POST', body); },
     updateMaterial(id, body) { return this.submit(`/admin/materials/${encodeURIComponent(id)}`, 'PUT', body); },
     deleteMaterial(id) { return this.submit(`/admin/materials/${encodeURIComponent(id)}`, 'DELETE'); },
+    bulkDelete(body) { return this.submit('/admin/materials/bulk', 'DELETE', body); },
     async fetchFile(id) {
       const response = await fetch(`${this.base()}/admin/materials/${encodeURIComponent(id)}/file`, {
         headers: { Authorization: `Bearer ${this.token()}` },

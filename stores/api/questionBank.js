@@ -91,6 +91,7 @@ export const useQuestionBankStore = defineStore('questionBank', {
     createQuestion(payload) { return this.submit('POST', '/admin/questions', payload); },
     updateQuestion(id, payload) { return this.submit('PUT', `/admin/questions/${encodeURIComponent(id)}`, payload); },
     deleteQuestion(id) { return this.submit('DELETE', `/admin/questions/${encodeURIComponent(id)}`); },
+    bulkDelete(payload) { return this.submit('DELETE', '/admin/questions/bulk', payload); },
     getImportBase() {
       return Number(useAuthStore().user?.role) === 3 ? '/tutor/questions' : '/admin/questions';
     },

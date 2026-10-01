@@ -60,6 +60,10 @@ const notice = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
 const file = ref<File | null>(null);
 const fileBusy = ref<number | null>(null);
+const selectedIds = ref<Set<number>>(new Set());
+const selectionScope = ref<'page' | 'filter' | 'all'>('page');
+const bulkDialog = ref<{ selection: 'ids' | 'filter' | 'all'; count: number } | null>(null);
+const confirmationText = ref('');
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 const form = reactive({
@@ -109,6 +113,10 @@ const endRow = computed(() =>
     store.pagination.total,
   ),
 );
+const pageIds = computed(() => store.materials.map((item: Material) => Number(item.id)));
+const pageSelected = computed(() => pageIds.value.length > 0 && pageIds.value.every((id) => selectedIds.value.has(id)));
+const selectedCount = computed(() => selectionScope.value === 'page' ? selectedIds.value.size : store.pagination.total);
+const hasFilters = computed(() => Object.values(store.filters).some((value) => String(value).trim()));
 
 function formatDate(value?: string) {
   if (!value) return "—";
@@ -157,15 +165,16 @@ function openEdit(item: Material) {
   subtestsChanged();
   showForm.value = true;
 }
-const isAllSubtestsSelected = computed(() => form.subtests.length === subtests.length);
 const groupedCategories = computed(() => Object.fromEntries(form.subtests.map((code) => [code, store.categoryOptions.filter((item: any) => item.subtest === code)])));
 const isAllCategoriesSelected = computed(() => store.categoryOptions.length > 0 && store.categoryOptions.every((item: any) => form.category_ids.includes(Number(item.id))));
+let categoryRefreshId = 0;
 async function subtestsChanged() {
+  const current = ++categoryRefreshId;
   await store.fetchCategoryOptions(form.subtests);
+  if (current !== categoryRefreshId) return;
   const allowed = new Set(store.categoryOptions.map((item: any) => Number(item.id)));
   form.category_ids = form.category_ids.filter((id) => allowed.has(Number(id)));
 }
-function toggleAllSubtests(checked: boolean) { form.subtests = checked ? subtests.map((item) => item.code) : []; subtestsChanged(); }
 function toggleSubtest(code: string, checked: boolean) {
   form.subtests = checked ? [...new Set([...form.subtests, code])] : form.subtests.filter((item) => item !== code);
   subtestsChanged();
@@ -189,9 +198,26 @@ function chooseFile(event: Event) {
 async function refresh() {
   await Promise.all([store.fetchMaterials(), store.fetchSummary()]);
 }
+function clearSelection() { selectedIds.value = new Set(); selectionScope.value = 'page'; bulkDialog.value = null; confirmationText.value = ''; }
 function applyFilter() {
+  clearSelection();
   store.pagination.page = 1;
   store.fetchMaterials();
+}
+function toggleOne(id: number, checked: boolean) { const next = new Set(selectedIds.value); checked ? next.add(id) : next.delete(id); selectedIds.value = next; selectionScope.value = 'page'; }
+function togglePage(checked: boolean) { const next = new Set(selectedIds.value); for (const id of pageIds.value) checked ? next.add(id) : next.delete(id); selectedIds.value = next; selectionScope.value = 'page'; }
+function selectAllMatching() { selectedIds.value = new Set(); selectionScope.value = hasFilters.value ? 'filter' : 'all'; }
+function openBulkDelete(selection?: 'ids' | 'filter' | 'all') { const resolved = selection || (selectionScope.value === 'page' ? 'ids' : selectionScope.value); const count = resolved === 'ids' ? selectedIds.value.size : store.pagination.total; if (!count) return; confirmationText.value = ''; actionError.value = ''; bulkDialog.value = { selection: resolved, count }; }
+function filterSummary() { return [store.filters.subtest && `Subtes: ${store.filters.subtest}`, store.filters.category && `Kategori: ${store.filters.category}`, store.filters.status && `Status: ${store.filters.status}`, store.filters.search && `Pencarian: “${store.filters.search}”`].filter(Boolean).join(' · '); }
+async function confirmBulkDelete() {
+  if (!bulkDialog.value || store.isSubmitting || (bulkDialog.value.selection === 'all' && confirmationText.value !== 'HAPUS')) return;
+  actionError.value = ''; notice.value = '';
+  try {
+    const body = bulkDialog.value.selection === 'ids' ? { selection: 'ids', ids: [...selectedIds.value] } : bulkDialog.value.selection === 'filter' ? { selection: 'filter', filters: { ...store.filters } } : { selection: 'all', confirmation: confirmationText.value };
+    const response = await store.bulkDelete(body); const deleted = Number(response?.data?.deleted || bulkDialog.value.count);
+    bulkDialog.value = null; clearSelection(); notice.value = `${deleted} materi berhasil dihapus.`;
+    await refresh(); if (store.pagination.page > store.pagination.totalPages) { store.pagination.page = store.pagination.totalPages; await store.fetchMaterials(); }
+  } catch { actionError.value = store.error || 'Gagal menghapus materi.'; store.error = ''; }
 }
 function changePage(next: number) {
   if (next < 1 || next > store.pagination.totalPages) return;
@@ -357,7 +383,7 @@ onMounted(async () => {
           class="min-w-0 rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm"
           @change="applyFilter"
         >
-          <option value="">Semua Subtes</option>
+          <option value="">Pilih filter subtes</option>
           <option v-for="item in subtests" :key="item.code" :value="item.code">
             {{ item.label }}
           </option></select
@@ -405,6 +431,7 @@ onMounted(async () => {
           {{ item.name }}
         </option>
       </select>
+      <div v-if="store.materials.length" class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-soft-blue bg-surface-container-low px-4 py-3 text-sm"><label class="flex items-center gap-2 font-semibold"><input type="checkbox" :checked="pageSelected" @change="togglePage(($event.target as HTMLInputElement).checked)">Pilih halaman ini</label><template v-if="pageSelected && store.pagination.total > pageIds.length && selectionScope === 'page'"><span>{{ pageIds.length }} materi di halaman ini dipilih.</span><button type="button" class="font-semibold text-primary-container underline" @click="selectAllMatching">Pilih semua {{ store.pagination.total }} materi {{ hasFilters ? 'sesuai filter' : '' }}</button></template><template v-if="selectedCount"><strong class="ml-auto">{{ selectedCount }} materi dipilih</strong><button type="button" class="rounded-xl bg-danger-rose px-3 py-2 font-semibold text-white" :disabled="store.isSubmitting" @click="openBulkDelete()">Hapus Terpilih</button><button type="button" class="rounded-xl border border-soft-blue px-3 py-2" @click="clearSelection">Batal Pilih</button></template><button v-else type="button" class="ml-auto rounded-xl border border-danger-rose px-3 py-2 font-semibold text-danger-rose" @click="openBulkDelete('all')">Hapus Seluruh Materi</button></div>
       <p
         v-if="notice"
         role="status"
@@ -474,6 +501,7 @@ onMounted(async () => {
               class="border-b border-soft-blue font-caption text-caption text-outline"
             >
               <tr>
+                <th class="px-3 py-3"><input type="checkbox" aria-label="Pilih semua materi di halaman" :checked="pageSelected" @change="togglePage(($event.target as HTMLInputElement).checked)"></th>
                 <th class="px-3 py-3">Materi</th>
                 <th class="px-3 py-3">Subtes</th>
                 <th class="px-3 py-3">Kategori</th>
@@ -489,6 +517,7 @@ onMounted(async () => {
                 :key="item.id"
                 class="hover:bg-surface-container-low"
               >
+                <td class="px-3 py-4"><input type="checkbox" :aria-label="`Pilih ${item.title}`" :checked="selectedIds.has(Number(item.id))" @change="toggleOne(Number(item.id), ($event.target as HTMLInputElement).checked)"></td>
                 <td class="max-w-[270px] px-3 py-4">
                   <div class="flex items-center gap-3">
                     <div
@@ -509,7 +538,7 @@ onMounted(async () => {
                   </div>
                 </td>
                 <td class="px-3 py-4 text-on-surface-variant">
-                  {{ item.subtests?.length === 7 ? 'Semua Subtes' : item.subtests?.map(entry => entry.code).join(', ') || item.subtest }}
+                  {{ item.subtests?.map(entry => entry.code).join(', ') || item.subtest }}
                 </td>
                 <td class="px-3 py-4 text-on-surface-variant">
                   {{ item.categories?.[0]?.name || item.category }}<template v-if="(item.categories?.length || 0) > 1"> +{{ item.categories!.length - 1 }}</template>
@@ -574,7 +603,7 @@ onMounted(async () => {
             :key="item.id"
             class="rounded-2xl border border-soft-blue p-4"
           >
-            <div class="flex items-start gap-3">
+            <div class="flex items-start gap-3"><input type="checkbox" class="mt-1" :aria-label="`Pilih ${item.title}`" :checked="selectedIds.has(Number(item.id))" @change="toggleOne(Number(item.id), ($event.target as HTMLInputElement).checked)">
               <FileText class="h-6 w-6 shrink-0 text-primary-container" />
               <div class="min-w-0 flex-1">
                 <h3
@@ -590,7 +619,7 @@ onMounted(async () => {
             <div class="mt-3 flex flex-wrap gap-2 font-caption text-caption">
               <span
                 class="rounded-full bg-pale-blue px-2.5 py-1 text-primary-container"
-                >{{ item.subtests?.length === 7 ? 'Semua Subtes' : item.subtests?.map(entry => entry.code).join(', ') || item.subtest }}</span
+                >{{ item.subtests?.map(entry => entry.code).join(', ') || item.subtest }}</span
               ><span
                 class="rounded-full bg-surface-container px-2.5 py-1 text-outline"
                 >{{ item.categories?.[0]?.name || item.category }}<template v-if="(item.categories?.length || 0) > 1"> +{{ item.categories!.length - 1 }}</template></span
@@ -695,13 +724,12 @@ onMounted(async () => {
               class="mt-1 w-full rounded-2xl border border-outline-variant bg-surface-container-low px-3 py-2.5 font-body-sm text-body-sm"
           /></label>
           <fieldset class="rounded-2xl border border-outline-variant p-4"><legend class="px-1 font-label-sm text-label-sm text-on-surface">Subtes</legend>
-            <label class="mb-3 flex min-h-11 items-center gap-3 border-b border-soft-blue pb-3"><input type="checkbox" :checked="isAllSubtestsSelected" class="h-4 w-4 accent-primary-container" @change="toggleAllSubtests(($event.target as HTMLInputElement).checked)"><strong>Semua Subtes</strong></label>
             <div class="grid gap-2 sm:grid-cols-2"><label v-for="item in subtests" :key="item.code" class="flex min-h-11 items-center gap-3 rounded-xl bg-surface-container-low px-3 py-2"><input type="checkbox" :checked="form.subtests.includes(item.code)" class="h-4 w-4 accent-primary-container" @change="toggleSubtest(item.code, ($event.target as HTMLInputElement).checked)"><span><strong class="block">{{ item.code }}</strong><small class="text-outline">{{ item.label }}</small></span></label></div>
           </fieldset>
           <fieldset class="rounded-2xl border border-outline-variant p-4"><legend class="px-1 font-label-sm text-label-sm text-on-surface">Kategori</legend>
             <p v-if="!form.subtests.length" class="text-sm text-on-surface-variant">Pilih minimal satu subtes untuk menampilkan kategori.</p>
             <template v-else><label class="mb-3 flex min-h-11 items-center gap-3 border-b border-soft-blue pb-3"><input type="checkbox" :checked="isAllCategoriesSelected" class="h-4 w-4 accent-primary-container" @change="toggleAllCategories(($event.target as HTMLInputElement).checked)"><strong>Semua Kategori</strong></label>
-              <p v-if="store.isLoadingCategories" class="text-sm text-on-surface-variant">Memuat kategori...</p>
+              <p v-if="store.isLoadingCategories" class="text-sm text-on-surface-variant">Memuat kategori...</p><p v-else-if="store.categoryError" class="text-sm text-danger-rose">{{ store.categoryError }}</p>
               <div v-else class="space-y-4"><section v-for="code in form.subtests" :key="code" class="rounded-xl bg-surface-container-low p-3"><div class="mb-2"><strong>{{ code }}</strong><span class="ml-2 text-xs text-outline">{{ subtests.find(item => item.code === code)?.label }}</span></div><p v-if="!groupedCategories[code]?.length" class="text-xs text-outline">Belum ada kategori untuk subtes ini.</p><template v-else><label class="flex min-h-10 items-center gap-2 font-medium"><input type="checkbox" :checked="groupedCategories[code].every((item:any) => form.category_ids.includes(Number(item.id)))" class="h-4 w-4 accent-primary-container" @change="toggleCategoryGroup(code, ($event.target as HTMLInputElement).checked)">Semua Kategori {{ code }}</label><div class="grid gap-1 sm:grid-cols-2"><label v-for="item in groupedCategories[code]" :key="item.id" class="flex min-h-10 items-center gap-2"><input type="checkbox" :checked="form.category_ids.includes(Number(item.id))" class="h-4 w-4 accent-primary-container" @change="toggleCategory(Number(item.id), ($event.target as HTMLInputElement).checked)">{{ item.name }}</label></div></template></section></div>
             </template>
           </fieldset>
@@ -817,5 +845,6 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    <div v-if="bulkDialog" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" @click.self="!store.isSubmitting && (bulkDialog = null)"><div role="alertdialog" aria-modal="true" aria-label="Konfirmasi bulk delete materi" class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><h2 class="font-title-md text-title-md">{{ bulkDialog.selection === 'all' ? 'Hapus seluruh Materi?' : `Hapus ${bulkDialog.count} materi?` }}</h2><p class="mt-2 text-sm text-on-surface-variant">{{ bulkDialog.selection === 'filter' ? `Hanya materi sesuai filter berikut yang akan dihapus: ${filterSummary()}.` : bulkDialog.selection === 'all' ? 'Tindakan ini mencakup seluruh Materi. Materi yang masih digunakan tidak akan dapat dihapus.' : 'Hanya materi yang dipilih akan dihapus. Operasi dibatalkan seluruhnya jika salah satu masih digunakan.' }}</p><label v-if="bulkDialog.selection === 'all'" class="mt-4 block text-sm font-semibold">Ketik HAPUS untuk melanjutkan<input v-model="confirmationText" autocomplete="off" class="mt-1 w-full rounded-xl border border-outline-variant px-3 py-2"></label><p v-if="actionError" class="mt-3 text-sm text-danger-rose">{{ actionError }}</p><div class="mt-6 flex justify-end gap-2"><button type="button" :disabled="store.isSubmitting" class="rounded-xl border border-soft-blue px-4 py-2.5" @click="bulkDialog = null">Batal</button><button type="button" :disabled="store.isSubmitting || (bulkDialog.selection === 'all' && confirmationText !== 'HAPUS')" class="inline-flex items-center gap-2 rounded-xl bg-danger-rose px-4 py-2.5 font-semibold text-white disabled:opacity-50" @click="confirmBulkDelete"><LoaderCircle v-if="store.isSubmitting" class="h-4 w-4 animate-spin" />{{ store.isSubmitting ? `Menghapus ${bulkDialog.count} materi...` : `Hapus ${bulkDialog.count} Materi` }}</button></div></div></div>
   </div>
 </template>
